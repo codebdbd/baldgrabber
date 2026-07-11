@@ -45,7 +45,7 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.*" />
   </ItemGroup>
 
   <!-- Publish Properties -->
@@ -58,9 +58,6 @@
   </PropertyGroup>
 
   <Target Name="CopyPriFileAfterPublish" AfterTargets="Publish">
-    <Copy SourceFiles="$(OutputPath)$(MSBuildProjectName).pri"
-          DestinationFolder="$(PublishDir)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(OutputPath)$(MSBuildProjectName).pri')" />
+    <Copy SourceFiles="$(OutputPath)$(MSBuildProjectName).pri" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" Condition="Exists('$(OutputPath)$(MSBuildProjectName).pri')" />
   </Target>
 </Project>

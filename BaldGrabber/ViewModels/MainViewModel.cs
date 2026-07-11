@@ -554,7 +554,6 @@ public partial class MainViewModel : INotifyPropertyChanged
         {
             IsIndeterminate = false;
             IsDownloading = false;
-            _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
         }
@@ -566,8 +565,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         {
             if (!string.IsNullOrEmpty(DownloadedFilePath) && System.IO.File.Exists(DownloadedFilePath))
             {
-                var safePath = DownloadedFilePath.Replace("\"", "\\\"");
-                Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{safePath}\"", UseShellExecute = true });
+                Process.Start(new ProcessStartInfo { FileName = "explorer.exe", Arguments = $"/select,\"{DownloadedFilePath}\"", UseShellExecute = true });
             }
             else if (!string.IsNullOrEmpty(OutputFolder) && System.IO.Directory.Exists(OutputFolder))
             {
@@ -624,6 +622,17 @@ public class Localization
     public string Quality96Desc { get; private set; } = "";
     public string VideoQualityLabel { get; private set; } = "";
     public string VideoDownloadButton { get; private set; } = "";
+    public string AudioTab { get; private set; } = "";
+    public string VideoTab { get; private set; } = "";
+    public string FragmentDialogTitle { get; private set; } = "";
+    public string FragmentHintText { get; private set; } = "";
+    public string FragmentStartLabel { get; private set; } = "";
+    public string FragmentStopLabel { get; private set; } = "";
+    public string FragmentFormatHint { get; private set; } = "";
+    public string FragmentSaveButton { get; private set; } = "";
+    public string FragmentClearButton { get; private set; } = "";
+    public string FragmentCancelButton { get; private set; } = "";
+    public string FragmentErrorText { get; private set; } = "";
 
     public static Localization Create()
     {
@@ -677,7 +686,18 @@ public class Localization
         Quality96Desc = "Very small file size",
         VideoQualityLabel = "Video quality",
         VideoDownloadButton = "Download video",
-        EmbedThumbnailLabel = "Embed thumbnail"
+        EmbedThumbnailLabel = "Embed thumbnail",
+        AudioTab = "Audio",
+        VideoTab = "Video",
+        FragmentDialogTitle = "Fragment",
+        FragmentHintText = "Set start, stop or both boundaries.\nEmpty start — from beginning. Empty stop — to end.",
+        FragmentStartLabel = "Start",
+        FragmentStopLabel = "Stop",
+        FragmentFormatHint = "M — minutes, HH — hours, SS — seconds\nExample: 1:30 or 01:02:30",
+        FragmentSaveButton = "Save",
+        FragmentClearButton = "Clear",
+        FragmentCancelButton = "Cancel",
+        FragmentErrorText = "Enter time in M:SS or HH:MM:SS format"
     };
 
     private static Localization CreateRu() => new()
@@ -721,7 +741,18 @@ public class Localization
         Quality96Desc = "Очень маленький размер файла",
         VideoQualityLabel = "Качество видео",
         VideoDownloadButton = "Скачать видео",
-        EmbedThumbnailLabel = "Встроить обложку"
+        EmbedThumbnailLabel = "Встроить обложку",
+        AudioTab = "Аудио",
+        VideoTab = "Видео",
+        FragmentDialogTitle = "Фрагмент",
+        FragmentHintText = "Укажите старт, стоп или обе границы.\nПустой старт — с начала. Пустой стоп — до конца.",
+        FragmentStartLabel = "Старт",
+        FragmentStopLabel = "Стоп",
+        FragmentFormatHint = "M — минуты, HH — часы, SS — секунды\nНапример: 1:30 или 01:02:30",
+        FragmentSaveButton = "Сохранить",
+        FragmentClearButton = "Очистить",
+        FragmentCancelButton = "Отмена",
+        FragmentErrorText = "Введите время в формате M:SS или HH:MM:SS"
     };
 
     private static Localization CreateUk() => new()
@@ -765,6 +796,17 @@ public class Localization
         Quality96Desc = "Дуже малий розмір файлу",
         VideoQualityLabel = "Якість відео",
         VideoDownloadButton = "Завантажити відео",
-        EmbedThumbnailLabel = "Вбудувати обкладинку"
+        EmbedThumbnailLabel = "Вбудувати обкладинку",
+        AudioTab = "Аудіо",
+        VideoTab = "Відео",
+        FragmentDialogTitle = "Фрагмент",
+        FragmentHintText = "Вкажіть старт, стоп або обидві межі.\nПорожній старт — з початку. Порожній стоп — до кінця.",
+        FragmentStartLabel = "Старт",
+        FragmentStopLabel = "Стоп",
+        FragmentFormatHint = "M — хвилини, HH — години, SS — секунди\nНаприклад: 1:30 або 01:02:30",
+        FragmentSaveButton = "Зберегти",
+        FragmentClearButton = "Очистити",
+        FragmentCancelButton = "Скасувати",
+        FragmentErrorText = "Введіть час у форматі M:SS або HH:MM:SS"
     };
 }

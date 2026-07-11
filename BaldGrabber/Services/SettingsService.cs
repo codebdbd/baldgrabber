@@ -24,7 +24,7 @@ public class SettingsService
         {
             var appDataPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "AudioGrabber");
+                "BaldGrabber");
 
             if (!Directory.Exists(appDataPath))
                 Directory.CreateDirectory(appDataPath);

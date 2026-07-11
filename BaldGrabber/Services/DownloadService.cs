@@ -67,7 +67,7 @@ public class DownloadService
     public static bool IsPlaylistUrl(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
-        return uri.AbsolutePath.Contains("playlist");
+        return uri.AbsolutePath.Contains("playlist") || uri.Query.Contains("list=");
     }
 
     public async Task<(string filePath, string title, string actualQuality)> DownloadAsync(
@@ -467,6 +467,8 @@ public class DownloadService
     public async Task<List<string>> GetAvailableFormatsAsync(string url, DownloadMode mode, CancellationToken ct)
     {
         var result = new List<string>();
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(60));
         try
         {
             using var process = new Process { StartInfo = new ProcessStartInfo { FileName = _ytDlpPath, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true } };
@@ -482,11 +484,11 @@ public class DownloadService
             process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
             process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
 
-            using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
+            using var reg = timeoutCts.Token.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
             process.Start();
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            await process.WaitForExitAsync(ct);
+            await process.WaitForExitAsync(timeoutCts.Token);
 
             Log.Information("yt-dlp get formats exit code: {ExitCode}", process.ExitCode);
             if (error.Length > 0) Log.Warning("yt-dlp get formats error: {Error}", error.ToString());

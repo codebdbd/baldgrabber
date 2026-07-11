@@ -28,8 +28,8 @@ public sealed partial class MainPage : Page
         DownloadButton.Content = _loc.DownloadButton;
         SupportAuthor.Content = _loc.SupportAuthor;
         OpenFolderButton.Content = _loc.OpenFolderButton;
-        AudioTabText.Text = "Аудио";
-        VideoTabText.Text = "Видео";
+        AudioTabText.Text = _loc.AudioTab;
+        VideoTabText.Text = _loc.VideoTab;
 
         ApplyModeStyle(vm.SelectedMode);
 
@@ -182,18 +182,18 @@ public sealed partial class MainPage : Page
         };
         content.Children.Add(new TextBlock
         {
-            Text = "Укажите старт, стоп или обе границы.\nПустой старт — с начала. Пустой стоп — до конца.",
+            Text = _loc.FragmentHintText,
             Foreground = new SolidColorBrush(Color.FromArgb(255, 195, 198, 212)),
             TextWrapping = TextWrapping.Wrap,
             FontSize = 13
         });
 
-        content.Children.Add(CreateFragmentField("Старт", startBox, startError));
-        content.Children.Add(CreateFragmentField("Стоп", stopBox, stopError));
+        content.Children.Add(CreateFragmentField(_loc.FragmentStartLabel, startBox, startError));
+        content.Children.Add(CreateFragmentField(_loc.FragmentStopLabel, stopBox, stopError));
 
         content.Children.Add(new TextBlock
         {
-            Text = "M — минуты, HH — часы, SS — секунды\nНапример: 1:30 или 01:02:30",
+            Text = _loc.FragmentFormatHint,
             Foreground = new SolidColorBrush(Color.FromArgb(255, 107, 114, 128)),
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
@@ -203,16 +203,16 @@ public sealed partial class MainPage : Page
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = "Фрагмент",
+            Title = _loc.FragmentDialogTitle,
             Content = content,
             Background = new SolidColorBrush(Color.FromArgb(255, 31, 36, 52)),
             Foreground = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)),
             Padding = new Thickness(24)
         };
 
-        var saveButton = CreateFragmentDialogButton("Сохранить", activeBrush);
-        var clearButton = CreateFragmentDialogButton("Очистить", neutralBrush);
-        var cancelButton = CreateFragmentDialogButton("Отмена", neutralBrush);
+        var saveButton = CreateFragmentDialogButton(_loc.FragmentSaveButton, activeBrush);
+        var clearButton = CreateFragmentDialogButton(_loc.FragmentClearButton, neutralBrush);
+        var cancelButton = CreateFragmentDialogButton(_loc.FragmentCancelButton, neutralBrush);
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -234,9 +234,9 @@ public sealed partial class MainPage : Page
             var isStopValid = IsValidFragmentTime(stopBox.Text);
 
             if (!isStartValid)
-                startError.Text = "Введите время в формате M:SS или HH:MM:SS";
+                startError.Text = _loc.FragmentErrorText;
             if (!isStopValid)
-                stopError.Text = "Введите время в формате M:SS или HH:MM:SS";
+                stopError.Text = _loc.FragmentErrorText;
 
             if (!isStartValid || !isStopValid)
                 return;
