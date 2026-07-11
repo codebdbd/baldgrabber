@@ -66,3 +66,6 @@ Output/
 
 # MimoCode
 .mimocode/
+
+# AI assistant configuration
+CLAUDE.md
