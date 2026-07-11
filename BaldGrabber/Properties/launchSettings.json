@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "AudioGrabber (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "AudioGrabber (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
