@@ -27,6 +27,8 @@ public partial class MainViewModel : INotifyPropertyChanged
     private CancellationTokenSource? _cancellationTokenSource;
     private CancellationTokenSource? _formatCancellationTokenSource;
 
+
+
     public event PropertyChangedEventHandler? PropertyChanged;
 
     protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? name = null)
@@ -329,6 +331,17 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     private void UpdateButtonLabel() => DownloadButtonText = SelectedMode == DownloadMode.Video ? "Скачать видео" : "Скачать аудио";
 
+    public void ResetState()
+    {
+        TimeFrom = "";
+        TimeTo = "";
+        Status = _loc.StatusWaiting;
+        Progress = 0;
+        ProgressText = "0%";
+        DownloadedFilePath = null;
+        FormatsStatus = "";
+    }
+
     private string _formatsStatus = "";
     public string FormatsStatus
     {
@@ -367,7 +380,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             FormatsStatus = "";
             await Task.Delay(300, ct);
 
-            var formats = await _downloadService.GetAvailableVideoFormatsAsync(Url, ct);
+            var formats = await _downloadService.GetAvailableFormatsAsync(Url, DownloadMode.Video, ct);
 
             if (SelectedMode != DownloadMode.Video)
                 return;
@@ -458,6 +471,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             Status = _loc.StatusDownloading;
             Progress = 0;
             DownloadedFilePath = null;
+            FormatsStatus = "";
 
             _settings.SelectedMode = SelectedMode.ToString();
             if (SelectedMode == DownloadMode.Audio && !string.IsNullOrEmpty(SelectedAudioQuality?.Id))
@@ -488,6 +502,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                         -2 => _loc.StatusMerging,
                         -3 => _loc.StatusCleaning,
                         -4 => _loc.StatusTrimming,
+                        -5 => _loc.StatusEmbeddingThumbnail,
                         _ => Status
                     };
                 }
@@ -596,7 +611,9 @@ public class Localization
     public string StatusMerging { get; private set; } = "";
     public string StatusTrimming { get; private set; } = "";
     public string StatusCleaning { get; private set; } = "";
+    public string StatusEmbeddingThumbnail { get; private set; } = "";
     public string StatusCompleted { get; private set; } = "";
+    public string EmbedThumbnailLabel { get; private set; } = "";
     public string StatusCancelled { get; private set; } = "";
     public string StatusError { get; private set; } = "";
     public string QualityBestDesc { get; private set; } = "";
@@ -648,6 +665,7 @@ public class Localization
         StatusMerging = "Merging files...",
         StatusTrimming = "Trimming audio...",
         StatusCleaning = "Cleaning up...",
+        StatusEmbeddingThumbnail = "Embedding thumbnail...",
         StatusCompleted = "Completed: {0}",
         StatusCancelled = "Download cancelled",
         StatusError = "Error: {0}",
@@ -658,7 +676,8 @@ public class Localization
         Quality128Desc = "Small file size",
         Quality96Desc = "Very small file size",
         VideoQualityLabel = "Video quality",
-        VideoDownloadButton = "Download video"
+        VideoDownloadButton = "Download video",
+        EmbedThumbnailLabel = "Embed thumbnail"
     };
 
     private static Localization CreateRu() => new()
@@ -690,6 +709,7 @@ public class Localization
         StatusMerging = "Склейка файлов...",
         StatusTrimming = "Обрезка аудио...",
         StatusCleaning = "Очистка...",
+        StatusEmbeddingThumbnail = "Встраивание обложки...",
         StatusCompleted = "Завершено: {0}",
         StatusCancelled = "Загрузка отменена",
         StatusError = "Ошибка: {0}",
@@ -700,7 +720,8 @@ public class Localization
         Quality128Desc = "Маленький размер файла",
         Quality96Desc = "Очень маленький размер файла",
         VideoQualityLabel = "Качество видео",
-        VideoDownloadButton = "Скачать видео"
+        VideoDownloadButton = "Скачать видео",
+        EmbedThumbnailLabel = "Встроить обложку"
     };
 
     private static Localization CreateUk() => new()
@@ -732,6 +753,7 @@ public class Localization
         StatusMerging = "З'єднання файлів...",
         StatusTrimming = "Обрізка аудіо...",
         StatusCleaning = "Очищення...",
+        StatusEmbeddingThumbnail = "Вбудовування обкладинки...",
         StatusCompleted = "Завершено: {0}",
         StatusCancelled = "Завантаження скасовано",
         StatusError = "Помилка: {0}",
@@ -742,6 +764,7 @@ public class Localization
         Quality128Desc = "Малий розмір файлу",
         Quality96Desc = "Дуже малий розмір файлу",
         VideoQualityLabel = "Якість відео",
-        VideoDownloadButton = "Завантажити відео"
+        VideoDownloadButton = "Завантажити відео",
+        EmbedThumbnailLabel = "Вбудувати обкладинку"
     };
 }

@@ -10,6 +10,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using BaldGrabber.Models;
 using Serilog;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
 
 namespace BaldGrabber.Services;
 
@@ -80,6 +82,7 @@ public class DownloadService
 
         var jobId = Guid.NewGuid().ToString("N");
         var tempFilePath = Path.Combine(_tempFolder, $"temp_{jobId}");
+        string? thumbnailPath = null;
 
         try
         {
@@ -91,12 +94,21 @@ public class DownloadService
             var finalFileName = GetUniqueFileName(outputFolder, safeFileName, extension);
             var finalPath = Path.Combine(outputFolder, finalFileName);
 
+            // Always download thumbnail for audio
+            if (mode == DownloadMode.Audio)
+            {
+                thumbnailPath = await DownloadThumbnailAsync(url, jobId, cancellationToken);
+            }
+
             var exitCode = await Task.Run(() => RunYtDlp(mode, quality, qualityArg, tempFilePath, url, progress, cancellationToken), cancellationToken);
             if (exitCode != 0) throw new Exception($"yt-dlp error code: {exitCode}");
 
             var downloadedFile = FindDownloadedFile(jobId);
             if (downloadedFile == null) throw new FileNotFoundException("File not found after download");
 
+            string processedFile;
+
+            // Trim if needed
             if (!string.IsNullOrWhiteSpace(timeFrom) || !string.IsNullOrWhiteSpace(timeTo))
             {
                 progress.Report(-4);
@@ -104,11 +116,34 @@ public class DownloadService
                 var trimExitCode = await Task.Run(() => RunFfmpegTrim(downloadedFile, trimmedPath, timeFrom, timeTo, cancellationToken), cancellationToken);
                 if (trimExitCode != 0) throw new Exception($"ffmpeg trim error code: {trimExitCode}");
                 File.Delete(downloadedFile);
-                File.Move(trimmedPath, finalPath, overwrite: true);
+                processedFile = trimmedPath;
             }
             else
             {
-                File.Move(downloadedFile, finalPath, overwrite: true);
+                processedFile = downloadedFile;
+            }
+
+            // Always embed thumbnail for audio if available
+            if (mode == DownloadMode.Audio && thumbnailPath != null)
+            {
+                progress.Report(-5);
+                var withThumbnailPath = Path.Combine(_tempFolder, $"with_thumb_{jobId}{extension}");
+                var thumbExitCode = await Task.Run(() => RunFfmpegEmbedThumbnail(processedFile, thumbnailPath, withThumbnailPath, mode, cancellationToken), cancellationToken);
+                if (thumbExitCode != 0)
+                {
+                    Log.Warning("Failed to embed thumbnail, continuing without it");
+                    File.Move(processedFile, finalPath, overwrite: true);      
+                }
+                else
+                {
+                    File.Delete(processedFile);
+                    File.Move(withThumbnailPath, finalPath, overwrite: true);  
+                }
+                File.Delete(thumbnailPath);
+            }
+            else
+            {
+                File.Move(processedFile, finalPath, overwrite: true);
             }
 
             progress.Report(1.0);
@@ -152,40 +187,7 @@ public class DownloadService
 
     public async Task<List<string>> GetAvailableVideoFormatsAsync(string url, CancellationToken ct)
     {
-        var result = new List<string>();
-        try
-        {
-            using var process = new Process { StartInfo = new ProcessStartInfo { FileName = _ytDlpPath, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true } };
-            process.StartInfo.ArgumentList.Add("--js-runtimes"); process.StartInfo.ArgumentList.Add("node");
-            process.StartInfo.ArgumentList.Add("--encoding"); process.StartInfo.ArgumentList.Add("utf-8");
-            process.StartInfo.ArgumentList.Add("--no-playlist"); process.StartInfo.ArgumentList.Add("--dump-json");
-            process.StartInfo.ArgumentList.Add("--no-download"); process.StartInfo.ArgumentList.Add(url);
-
-            using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
-            process.Start();
-
-            using var reader = new StreamReader(process.StandardOutput.BaseStream, System.Text.Encoding.UTF8);
-            var json = await reader.ReadToEndAsync(ct);
-            if (!process.WaitForExit(TimeSpan.FromSeconds(5))) return result;
-
-            using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("formats", out var formats)) return result;
-
-            var heights = new HashSet<int>();
-            foreach (var fmt in formats.EnumerateArray())
-            {
-                if (fmt.TryGetProperty("vcodec", out var vc) && vc.GetString() != "none" && vc.GetString() != "")
-                {
-                    if (fmt.TryGetProperty("height", out var h) && h.GetInt32() > 0)
-                        heights.Add(h.GetInt32());
-                }
-            }
-
-            foreach (var h in heights.OrderByDescending(x => x))
-                result.Add($"{h}p");
-        }
-        catch (Exception ex) { Log.Warning(ex, "Failed to get available video formats"); }
-        return result;
+        return await GetAvailableFormatsAsync(url, DownloadMode.Video, ct);
     }
 
     private static string GetMp3QualityArg(string quality) => quality switch
@@ -199,9 +201,9 @@ public class DownloadService
     {
         var args = mode == DownloadMode.Audio
             ? NeedsMp3Conversion(quality)
-                ? new[] { "--js-runtimes", "node", "--encoding", "utf-8", "--ffmpeg-location", _ffmpegPath, "-x", "--audio-format", "mp3", "--audio-quality", GetMp3QualityArg(quality), "--postprocessor-args", "-threads 0", "--no-playlist", "-f", qualityArg, "-o", $"{tempFilePath}.%(ext)s", url }
-                : new[] { "--js-runtimes", "node", "--encoding", "utf-8", "--ffmpeg-location", _ffmpegPath, "--no-playlist", "-f", qualityArg, "-o", $"{tempFilePath}.%(ext)s", url }
-            : new[] { "--js-runtimes", "node", "--encoding", "utf-8", "--ffmpeg-location", _ffmpegPath, "-f", qualityArg, "--merge-output-format", "mp4", "--no-playlist", "-o", $"{tempFilePath}.%(ext)s", url };
+                ? new[] { "--encoding", "utf-8", "--ffmpeg-location", _ffmpegPath, "-x", "--audio-format", "mp3", "--audio-quality", GetMp3QualityArg(quality), "--postprocessor-args", "-threads 0", "--no-playlist", "-f", qualityArg, "-o", $"{tempFilePath}.%(ext)s", url }
+                : new[] { "--encoding", "utf-8", "--ffmpeg-location", _ffmpegPath, "--no-playlist", "-f", qualityArg, "-o", $"{tempFilePath}.%(ext)s", url }
+            : new[] { "--encoding", "utf-8", "--ffmpeg-location", _ffmpegPath, "-f", qualityArg, "--merge-output-format", "mp4", "--no-playlist", "-o", $"{tempFilePath}.%(ext)s", url };
 
         using var process = new Process { StartInfo = new ProcessStartInfo { FileName = _ytDlpPath, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true } };
         foreach (var arg in args) process.StartInfo.ArgumentList.Add(arg);
@@ -227,9 +229,11 @@ public class DownloadService
     private async Task<string> GetVideoTitleAsync(string url, CancellationToken ct)
     {
         using var process = new Process { StartInfo = new ProcessStartInfo { FileName = _ytDlpPath, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true } };
-        process.StartInfo.ArgumentList.Add("--js-runtimes"); process.StartInfo.ArgumentList.Add("node");
         process.StartInfo.ArgumentList.Add("--encoding"); process.StartInfo.ArgumentList.Add("utf-8");
-        process.StartInfo.ArgumentList.Add("--no-playlist"); process.StartInfo.ArgumentList.Add("--get-title"); process.StartInfo.ArgumentList.Add(url);
+        process.StartInfo.ArgumentList.Add("--no-playlist"); process.StartInfo.ArgumentList.Add("--get-title");
+        process.StartInfo.ArgumentList.Add("--quiet"); process.StartInfo.ArgumentList.Add("--no-warnings");
+        process.StartInfo.ArgumentList.Add("--ignore-config");
+        process.StartInfo.ArgumentList.Add(url);
 
         using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
         process.Start(); process.BeginErrorReadLine();
@@ -283,6 +287,158 @@ public class DownloadService
         }
     }
 
+    private async Task<string?> DownloadThumbnailAsync(string url, string jobId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var thumbnailPathPattern = Path.Combine(_tempFolder, $"thumb_{jobId}.%(ext)s");
+            var args = new List<string>
+            {
+                "--encoding", "utf-8",
+                "--no-playlist",
+                "--write-all-thumbnails",
+                "--skip-download",
+                "--convert-thumbnails", "jpg",
+                "--quiet",
+                "--no-warnings",
+                "-o", thumbnailPathPattern,
+                url
+            };
+
+            using var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = _ytDlpPath,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                }
+            };
+
+            foreach (var arg in args) process.StartInfo.ArgumentList.Add(arg);
+
+            var output = new System.Text.StringBuilder();
+            var error = new System.Text.StringBuilder();
+            process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
+
+            using var reg = cancellationToken.Register(() => { try { process.Kill(entireProcessTree: true); } catch { } });
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            await process.WaitForExitAsync(cancellationToken);
+
+            Log.Information("yt-dlp thumbnail download exit code: {ExitCode}", process.ExitCode);
+            if (output.Length > 0) Log.Information("yt-dlp thumbnail output: {Output}", output.ToString());
+            if (error.Length > 0) Log.Warning("yt-dlp thumbnail error: {Error}", error.ToString());
+
+            // Find all downloaded thumbnail files
+            var possibleFiles = Directory.GetFiles(_tempFolder, $"thumb_{jobId}*");
+            Log.Information("Found {Count} possible thumbnail files: {Files}", possibleFiles.Length, string.Join(", ", possibleFiles));
+
+            // Select square thumbnail (width == height) with max size, or largest non-square
+            string? selectedThumbnail = null;
+            int maxSquareSize = 0;
+            int maxSize = 0;
+            foreach (var file in possibleFiles)
+            {
+                try
+                {
+                    using var image = SixLabors.ImageSharp.Image.Load(file);
+                    var size = Math.Max(image.Width, image.Height);
+                    if (image.Width == image.Height && image.Width > maxSquareSize)
+                    {
+                        maxSquareSize = image.Width;
+                        selectedThumbnail = file;
+                    }
+                    else if (size > maxSize && maxSquareSize == 0)
+                    {
+                        maxSize = size;
+                        selectedThumbnail = file;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Failed to check thumbnail dimensions for {File}", file);
+                }
+            }
+
+            // If no thumbnail found, return null
+            if (selectedThumbnail == null)
+                return null;
+
+            // Now make sure the selected thumbnail is square: crop the center if it's not
+            using var img = SixLabors.ImageSharp.Image.Load(selectedThumbnail);
+            if (img.Width != img.Height)
+            {
+                var squareSize = Math.Min(img.Width, img.Height);
+                var cropX = (img.Width - squareSize) / 2;
+                var cropY = (img.Height - squareSize) / 2;
+                img.Mutate(x => x.Crop(new Rectangle(cropX, cropY, squareSize, squareSize)));
+                var squareThumbnailPath = Path.Combine(_tempFolder, $"thumb_{jobId}_square.jpg");
+                await img.SaveAsJpegAsync(squareThumbnailPath, cancellationToken);
+                Log.Information("Cropped thumbnail to square: {File}", squareThumbnailPath);
+                return squareThumbnailPath;
+            }
+
+            return selectedThumbnail;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to download thumbnail");
+            return null;
+        }
+    }
+
+    private int RunFfmpegEmbedThumbnail(string inputPath, string thumbnailPath, string outputPath, DownloadMode mode, CancellationToken cancellationToken)
+    {
+        var args = new List<string> { "-y", "-i", inputPath, "-i", thumbnailPath };
+
+        if (mode == DownloadMode.Audio)
+        {
+            // For audio: map thumbnail as cover art
+            args.AddRange(new[] { "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:0", "attached_pic", outputPath });
+        }
+        else
+        {
+            // For video: just copy streams (video already has thumbnail, but we can replace it
+            args.AddRange(new[] { "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:1", "attached_pic", outputPath });
+        }
+
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = _ffmpegPath,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            }
+        };
+
+        foreach (var arg in args) process.StartInfo.ArgumentList.Add(arg);
+
+        var output = new System.Text.StringBuilder();
+        var error = new System.Text.StringBuilder();
+        process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
+        process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
+
+        using var reg = cancellationToken.Register(() => { try { process.Kill(entireProcessTree: true); } catch { } });
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+        process.WaitForExit();
+
+        Log.Information("ffmpeg embed thumbnail exit code: {ExitCode}", process.ExitCode);
+        if (output.Length > 0) Log.Information("ffmpeg embed thumbnail output: {Output}", output.ToString());
+        if (error.Length > 0) Log.Warning("ffmpeg embed thumbnail error: {Error}", error.ToString());
+
+        return process.ExitCode;
+    }
+
     private void CleanupTempFiles(string jobId)
     {
         try { foreach (var f in Directory.GetFiles(_tempFolder, $"temp_{jobId}*")) File.Delete(f); }
@@ -314,20 +470,41 @@ public class DownloadService
         try
         {
             using var process = new Process { StartInfo = new ProcessStartInfo { FileName = _ytDlpPath, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true } };
-            process.StartInfo.ArgumentList.Add("--js-runtimes"); process.StartInfo.ArgumentList.Add("node");
             process.StartInfo.ArgumentList.Add("--encoding"); process.StartInfo.ArgumentList.Add("utf-8");
             process.StartInfo.ArgumentList.Add("--no-playlist"); process.StartInfo.ArgumentList.Add("--dump-json");
-            process.StartInfo.ArgumentList.Add("--no-download"); process.StartInfo.ArgumentList.Add(url);
+            process.StartInfo.ArgumentList.Add("--no-download");
+            process.StartInfo.ArgumentList.Add("--quiet"); process.StartInfo.ArgumentList.Add("--no-warnings");
+            process.StartInfo.ArgumentList.Add("--ignore-config");
+            process.StartInfo.ArgumentList.Add(url);
+
+            var output = new System.Text.StringBuilder();
+            var error = new System.Text.StringBuilder();
+            process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
+            process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
 
             using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
             process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            await process.WaitForExitAsync(ct);
 
-            using var reader = new StreamReader(process.StandardOutput.BaseStream, System.Text.Encoding.UTF8);
-            var json = await reader.ReadToEndAsync(ct);
-            if (!process.WaitForExit(TimeSpan.FromSeconds(5))) return result;
+            Log.Information("yt-dlp get formats exit code: {ExitCode}", process.ExitCode);
+            if (error.Length > 0) Log.Warning("yt-dlp get formats error: {Error}", error.ToString());
+            Log.Information("yt-dlp get formats output length: {Length}", output.Length);
+
+            var json = output.ToString();
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                Log.Warning("yt-dlp returned empty json");
+                return result;
+            }
 
             using var doc = JsonDocument.Parse(json);
-            if (!doc.RootElement.TryGetProperty("formats", out var formats)) return result;
+            if (!doc.RootElement.TryGetProperty("formats", out var formats))
+            {
+                Log.Warning("No 'formats' property in yt-dlp json");
+                return result;
+            }
 
             if (mode == DownloadMode.Audio)
             {
@@ -365,6 +542,8 @@ public class DownloadService
                     }
                 }
 
+                Log.Information("Video mode: hasAudio={HasAudio}, videoHeights={Heights}", hasAudio, string.Join(", ", videoHeights));
+
                 if (hasAudio)
                 {
                     foreach (var h in videoHeights.OrderByDescending(x => x))
@@ -378,12 +557,15 @@ public class DownloadService
                         if (fmt.TryGetProperty("height", out var h) && h.GetInt32() > 0)
                             heights.Add(h.GetInt32());
                     }
+                    Log.Information("Video mode (no audio): heights={Heights}", string.Join(", ", heights));
                     foreach (var h in heights.OrderByDescending(x => x))
                         result.Add($"{h}p");
                 }
             }
+
+            Log.Information("GetAvailableFormatsAsync result: {Result}", string.Join(", ", result));
         }
-        catch (Exception ex) { Log.Warning(ex, "Failed to get available formats"); }
+        catch (Exception ex) { Log.Error(ex, "Failed to get available formats"); }
         return result;
     }
 

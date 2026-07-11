@@ -68,6 +68,39 @@ public sealed partial class MainPage : Page
         UpdateFragmentButtonStyle(vm);
     }
 
+    // Helper method to find a child of a specific type in the visual tree
+    private static T? FindChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        if (parent == null) return null;
+
+        int childrenCount = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < childrenCount; i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T t)
+                return t;
+
+            var result = FindChild<T>(child);
+            if (result != null)
+                return result;
+        }
+        return null;
+    }
+
+    private void VideoQualityComboBox_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (sender is ComboBox comboBox)
+        {
+            // Find the ContentPresenter inside the ComboBox
+            var contentPresenter = FindChild<ContentPresenter>(comboBox);
+            if (contentPresenter != null)
+            {
+                // Set the ContentPresenter's ContentTemplate to our custom template
+                contentPresenter.ContentTemplate = comboBox.Resources["VideoQualityItemTemplate"] as DataTemplate;
+            }
+        }
+    }
+
     private void ApplyModeStyle(DownloadMode mode)
     {
         var isAudio = mode == DownloadMode.Audio;
@@ -118,6 +151,8 @@ public sealed partial class MainPage : Page
     private void ClearUrlButton_Click(object sender, RoutedEventArgs e)
     {
         UrlTextBox.Text = string.Empty;
+        if (DataContext is ViewModels.MainViewModel vm)
+            vm.ResetState();
     }
 
     private void FolderTextBox_TextChanged(object sender, TextChangedEventArgs e)

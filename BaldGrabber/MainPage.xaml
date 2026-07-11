@@ -17,6 +17,7 @@
         <conv:SelectedStateConverter x:Key="SelectedStateConverter"/>
         <conv:EmptyToCollapsedConverter x:Key="EmptyToCollapsedConverter"/>
         <conv:InvertBoolToVisibilityConverter x:Key="InvertBoolToVisibilityConverter"/>
+        <conv:IdToForegroundConverter x:Key="IdToForegroundConverter" NormalBrush="{StaticResource WhiteBrush}" PlaceholderBrush="{StaticResource SecondaryBrush}"/>
         <SolidColorBrush x:Key="BackgroundBrush" Color="#121826"/>
         <SolidColorBrush x:Key="CardBrush" Color="#1F2434"/>
         <SolidColorBrush x:Key="AccentBrush" Color="#8B5CF6"/>
@@ -38,6 +39,80 @@
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="14,8"/>
             <Setter Property="FontSize" Value="15"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup x:Name="CommonStates">
+                                    <VisualState x:Name="Normal"/>
+                                    <VisualState x:Name="PointerOver">
+                                        <Storyboard>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="Background" Storyboard.TargetProperty="Background">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="#2A2F42"/>
+                                            </ObjectAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <Storyboard>
+                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="Background" Storyboard.TargetProperty="Background">
+                                                <DiscreteObjectKeyFrame KeyTime="0" Value="#2A2F42"/>
+                                            </ObjectAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualState>
+                                    <VisualState x:Name="Disabled">
+                                        <Storyboard>
+                                            <DoubleAnimationUsingKeyFrames Storyboard.TargetName="ContentPresenter" Storyboard.TargetProperty="Opacity">
+                                                <DiscreteDoubleKeyFrame KeyTime="0" Value="0.5"/>
+                                            </DoubleAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <Border x:Name="Background" 
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="{TemplateBinding CornerRadius}"
+                                    Padding="{TemplateBinding Padding}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="32"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter x:Name="ContentPresenter"
+                                                      Grid.Column="0"
+                                                      Content="{TemplateBinding SelectedItem}"
+                                                      ContentTemplate="{TemplateBinding ItemTemplate}"
+                                                      HorizontalAlignment="Stretch"
+                                                      VerticalAlignment="Center"/>
+                                    <FontIcon x:Name="DropDownGlyph"
+                                              Grid.Column="1"
+                                              FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                              Glyph="&#xE0E5;"
+                                              FontSize="12"
+                                              Foreground="{TemplateBinding Foreground}"
+                                              HorizontalAlignment="Right"
+                                              VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+                            <Popup x:Name="Popup">
+                                <Border x:Name="PopupBorder"
+                                        Background="{StaticResource ComboBoxDropDownBackground}"
+                                        BorderBrush="{StaticResource ComboBoxDropDownBorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="10">
+                                    <ScrollViewer x:Name="ScrollViewer"
+                                                  MinWidth="150"
+                                                  MaxHeight="300">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#0F1318"/>
         <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#3B4256"/>
@@ -165,6 +240,7 @@
             BorderThickness="1">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
@@ -340,14 +416,22 @@
                             ItemsSource="{Binding VideoQualities}"
                             SelectedItem="{Binding SelectedVideoQuality, Mode=TwoWay}"
                             IsEnabled="{Binding CanSelectVideoQuality}"
-                            HorizontalAlignment="Stretch">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="models:VideoQualityOption">
+                            HorizontalAlignment="Stretch"
+                            Loaded="VideoQualityComboBox_Loaded">
+                            <ComboBox.Resources>
+                                <DataTemplate x:Key="VideoQualityItemTemplate" x:DataType="models:VideoQualityOption">
                                     <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="15" FontWeight="Medium"/>
+                                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="Medium">
+                                            <TextBlock.Foreground>
+                                                <Binding Path="Id" Converter="{StaticResource IdToForegroundConverter}"/>
+                                            </TextBlock.Foreground>
+                                        </TextBlock>
                                         <TextBlock Text="недоступно" Foreground="#EF4444" FontSize="11" VerticalAlignment="Center" Visibility="{Binding IsAvailable, Converter={StaticResource InvertBoolToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </DataTemplate>
+                            </ComboBox.Resources>
+                            <ComboBox.ItemTemplate>
+                                <StaticResource ResourceKey="VideoQualityItemTemplate"/>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
                         <Button
@@ -371,9 +455,11 @@
                     </Grid>
                 </StackPanel>
 
+
+
                 <!-- Download Button -->
                 <Button
-                    Grid.Row="3"
+                    Grid.Row="4"
                     x:Name="DownloadButton"
                     Command="{Binding DownloadCommand}"
                     Foreground="White"
@@ -386,7 +472,7 @@
                     Margin="0,0,0,12"/>
 
                 <!-- Status Section -->
-                <StackPanel Grid.Row="4" Margin="0,0,0,8">
+                <StackPanel Grid.Row="5" Margin="0,0,0,8">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -422,7 +508,7 @@
 
                 <!-- Footer -->
                 <Border
-                    Grid.Row="5"
+                    Grid.Row="6"
                     BorderThickness="0">
                     <Grid>
                         <Grid.ColumnDefinitions>
