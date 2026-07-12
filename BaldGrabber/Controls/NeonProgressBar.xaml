@@ -1,0 +1,43 @@
+<UserControl
+    x:Class="BaldGrabber.Controls.NeonProgressBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    d:DesignHeight="20" d:DesignWidth="400">
+
+    <Grid Height="8" CornerRadius="4">
+        <!-- Background -->
+        <Border Background="#1A1F2E" CornerRadius="4"/>
+
+        <!-- Glow effect under the bar -->
+        <Border x:Name="GlowBorder"
+                CornerRadius="4"
+                Opacity="0"
+                Margin="0,2,0,-2"/>
+
+        <!-- Progress fill -->
+        <Grid x:Name="ProgressFill" HorizontalAlignment="Left" Width="0">
+            <Grid.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop x:Name="GradStart" Color="#8B5CF6" Offset="0"/>
+                    <GradientStop x:Name="GradMid" Color="#A78BFA" Offset="0.5"/>
+                    <GradientStop x:Name="GradEnd" Color="#8B5CF6" Offset="1"/>
+                </LinearGradientBrush>
+            </Grid.Background>
+
+            <!-- Shimmer overlay -->
+            <Border x:Name="Shimmer" Opacity="0.3" CornerRadius="4">
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                        <GradientStop Color="Transparent" Offset="0"/>
+                        <GradientStop x:Name="ShimmerColor" Color="#40FFFFFF" Offset="0.45"/>
+                        <GradientStop Color="Transparent" Offset="0.55"/>
+                        <GradientStop Color="Transparent" Offset="1"/>
+                    </LinearGradientBrush>
+                </Border.Background>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

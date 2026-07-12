@@ -9,6 +9,7 @@
     xmlns:vm="using:BaldGrabber.ViewModels"
     xmlns:models="using:BaldGrabber.Models"
     xmlns:conv="using:BaldGrabber.Converters"
+    xmlns:controls="using:BaldGrabber.Controls"
     mc:Ignorable="d"
     Background="#121826">
 
@@ -69,7 +70,7 @@
                                     </VisualState>
                                 </VisualStateGroup>
                             </VisualStateManager.VisualStateGroups>
-                            <Border x:Name="Background" 
+                            <Border x:Name="Background"
                                     Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
@@ -246,7 +247,6 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
 
                 <!-- URL Section -->
@@ -314,82 +314,8 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Folder Section -->
+                <!-- Quality Section (Row 1) -->
                 <StackPanel Grid.Row="1" Margin="0,0,0,12">
-                    <TextBlock
-                        x:Name="FolderLabel"
-                        FontSize="14"
-                        FontWeight="SemiBold"
-                        Foreground="{StaticResource WhiteBrush}"
-                        Margin="0,0,0,6"/>
-                    <Border
-                        BorderBrush="#3B4256"
-                        BorderThickness="1"
-                        CornerRadius="10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <Border
-                                Grid.Column="0"
-                                Background="#181D2C"
-                                CornerRadius="10,0,0,10"
-                                Padding="14,10">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <FontIcon
-                                        Grid.Column="0"
-                                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                        Glyph="&#xE838;"
-                                        FontSize="18"
-                                        Foreground="{StaticResource SecondaryBrush}"
-                                        Margin="0,0,10,0"
-                                        VerticalAlignment="Center"/>
-                                    <TextBox
-                                        Grid.Column="1"
-                                        x:Name="FolderTextBox"
-                                        Text="{Binding OutputFolder, Mode=TwoWay}"
-                                        TextChanged="FolderTextBox_TextChanged"
-                                        Background="Transparent"
-                                        Foreground="{StaticResource WhiteBrush}"
-                                        FontSize="15"
-                                        MinHeight="0"
-                                        VerticalAlignment="Center"
-                                        Padding="0,10">
-                                        <TextBox.Template>
-                                            <ControlTemplate TargetType="TextBox">
-                                                <Border Background="Transparent">
-                                                    <ScrollViewer
-                                                        x:Name="ContentElement"
-                                                        VerticalAlignment="Center"
-                                                        HorizontalScrollBarVisibility="Disabled"
-                                                        VerticalScrollBarVisibility="Disabled"/>
-                                                </Border>
-                                            </ControlTemplate>
-                                        </TextBox.Template>
-                                    </TextBox>
-                                </Grid>
-                            </Border>
-                            <Button
-                                Grid.Column="1"
-                                x:Name="BrowseButton"
-                                Command="{Binding BrowseFolderCommand}"
-                                Background="#2A2F42"
-                                Foreground="{StaticResource WhiteBrush}"
-                                BorderThickness="0"
-                                CornerRadius="0,10,10,0"
-                                Padding="20,10"
-                                FontSize="15"/>
-                        </Grid>
-                    </Border>
-                </StackPanel>
-
-                <!-- Quality Section -->
-                <StackPanel Grid.Row="2" Margin="0,0,0,12">
                     <TextBlock
                         x:Name="QualityLabel"
                         FontSize="14"
@@ -455,11 +381,110 @@
                     </Grid>
                 </StackPanel>
 
+                <!-- Folder Section (Row 2) -->
+                <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                    <TextBlock
+                        x:Name="FolderLabel"
+                        FontSize="14"
+                        FontWeight="SemiBold"
+                        Foreground="{StaticResource WhiteBrush}"
+                        Margin="0,0,0,6"/>
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
 
+                        <!-- Path input -->
+                        <Border
+                            Grid.Column="0"
+                            Background="#181D2C"
+                            BorderBrush="#3B4256"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            Padding="14,8"
+                            MinHeight="38">
+                            <TextBox
+                                x:Name="FolderTextBox"
+                                Text="{Binding OutputFolder, Mode=TwoWay}"
+                                TextChanged="FolderTextBox_TextChanged"
+                                Background="Transparent"
+                                Foreground="{StaticResource WhiteBrush}"
+                                FontSize="15"
+                                MinHeight="0"
+                                VerticalAlignment="Center"
+                                Padding="0,0">
+                                <TextBox.Template>
+                                    <ControlTemplate TargetType="TextBox">
+                                        <Border Background="Transparent">
+                                            <ScrollViewer
+                                                x:Name="ContentElement"
+                                                VerticalAlignment="Center"
+                                                HorizontalScrollBarVisibility="Disabled"
+                                                VerticalScrollBarVisibility="Disabled"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </TextBox.Template>
+                            </TextBox>
+                        </Border>
 
-                <!-- Download Button -->
+                        <!-- Browse button -->
+                        <Button
+                            Grid.Column="1"
+                            x:Name="BrowseButton"
+                            Command="{Binding BrowseFolderCommand}"
+                            Background="#2A2F42"
+                            Foreground="{StaticResource WhiteBrush}"
+                            BorderThickness="0"
+                            CornerRadius="10"
+                            Padding="14,8"
+                            MinHeight="38"
+                            VerticalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon
+                                    FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                    Glyph="&#xE838;"
+                                    FontSize="16"
+                                    VerticalAlignment="Center"/>
+                                <TextBlock
+                                    x:Name="BrowseButtonText"
+                                    FontSize="14"
+                                    VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Open folder button -->
+                        <Button
+                            Grid.Column="2"
+                            x:Name="OpenFolderButtonInline"
+                            Command="{Binding OpenFolderCommand}"
+                            Background="#2A2F42"
+                            Foreground="{StaticResource WhiteBrush}"
+                            BorderThickness="0"
+                            CornerRadius="10"
+                            Padding="14,8"
+                            MinHeight="38"
+                            IsEnabled="{Binding DownloadedFilePath, Converter={StaticResource NullToBoolConverter}}"
+                            VerticalAlignment="Stretch">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon
+                                    FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                    Glyph="&#xE8A7;"
+                                    FontSize="16"
+                                    VerticalAlignment="Center"/>
+                                <TextBlock
+                                    x:Name="OpenFolderButtonText"
+                                    FontSize="14"
+                                    VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Download Button (Row 3) -->
                 <Button
-                    Grid.Row="4"
+                    Grid.Row="3"
                     x:Name="DownloadButton"
                     Command="{Binding DownloadCommand}"
                     Foreground="White"
@@ -471,8 +496,8 @@
                     HorizontalAlignment="Stretch"
                     Margin="0,0,0,12"/>
 
-                <!-- Status Section -->
-                <StackPanel Grid.Row="5" Margin="0,0,0,8">
+                <!-- Status Section (Row 4) -->
+                <StackPanel Grid.Row="4" Margin="0,0,0,8">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -490,77 +515,63 @@
                             FontSize="14"
                             Foreground="{StaticResource WhiteBrush}"/>
                     </Grid>
-                    <ProgressBar
-                        x:Name="ProgressBar"
+                    <controls:NeonProgressBar
+                        x:Name="NeonProgressBar"
                         Value="{Binding Progress}"
-                        Maximum="1"
-                        IsIndeterminate="{Binding IsIndeterminate}"
-                        Height="6"
-                        CornerRadius="3"
-                        Margin="0,6,0,0"
-                        Background="#2A2F42"/>
-                    <TextBlock
-                        Text="{Binding FormatsStatus}"
-                        FontSize="12"
-                        Foreground="{StaticResource SecondaryBrush}"
-                        Margin="0,0,0,0"/>
-                </StackPanel>
-
-                <!-- Footer -->
-                <Border
-                    Grid.Row="6"
-                    BorderThickness="0">
-                    <Grid>
+                        IsActive="{Binding IsDownloading}"
+                        Height="8"
+                        Margin="0,6,0,0"/>
+                    <Grid Margin="0,4,0,0" Visibility="{Binding DownloadSpeed, Converter={StaticResource EmptyToCollapsedConverter}}">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <StackPanel
-                            Grid.Column="0"
-                            Orientation="Horizontal"
-                            Spacing="6"
-                            VerticalAlignment="Center">
-                            <FontIcon
-                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                Glyph="&#xEC32;"
-                                FontSize="16"
-                                Foreground="#6B7280"
-                                VerticalAlignment="Center"/>
-                            <HyperlinkButton
-                                x:Name="SupportAuthor"
-                                NavigateUri="https://send.monobank.ua/jar/3bTz2pbnrD"
-                                Foreground="#8B5CF6"
-                                VerticalAlignment="Center"
-                                Padding="0"
-                                MinHeight="0">
-                                <HyperlinkButton.Template>
-                                    <ControlTemplate TargetType="HyperlinkButton">
-                                        <ContentPresenter
-                                            Content="{TemplateBinding Content}"
-                                            Foreground="{TemplateBinding Foreground}"
-                                            Padding="{TemplateBinding Padding}"
-                                            HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                            VerticalAlignment="Center"/>
-                                    </ControlTemplate>
-                                </HyperlinkButton.Template>
-                                <TextBlock
-                                    FontSize="13"
-                                    Foreground="#8B5CF6"/>
-                            </HyperlinkButton>
-                        </StackPanel>
-                        <Button
+                        <TextBlock
+                            Text="{Binding DownloadSpeed}"
+                            FontSize="12"
+                            Foreground="{StaticResource SecondaryBrush}"/>
+                        <TextBlock
                             Grid.Column="1"
-                            x:Name="OpenFolderButton"
-                            Command="{Binding OpenFolderCommand}"
-                            IsEnabled="{Binding DownloadedFilePath, Converter={StaticResource NullToBoolConverter}}"
-                            Background="#2A2F42"
-                            Foreground="{StaticResource WhiteBrush}"
-                            BorderThickness="0"
-                            CornerRadius="10"
-                            Padding="16,10"
-                            FontSize="14"/>
+                            Text="{Binding TimeRemaining}"
+                            FontSize="12"
+                            Foreground="{StaticResource SecondaryBrush}"/>
                     </Grid>
-                </Border>
+                </StackPanel>
+
+                <!-- Footer (Row 5) — only Support Author -->
+                <StackPanel
+                    Grid.Row="5"
+                    Orientation="Horizontal"
+                    Spacing="6"
+                    VerticalAlignment="Center">
+                    <FontIcon
+                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                        Glyph="&#xEC32;"
+                        FontSize="16"
+                        Foreground="#6B7280"
+                        VerticalAlignment="Center"/>
+                    <HyperlinkButton
+                        x:Name="SupportAuthor"
+                        NavigateUri="https://send.monobank.ua/jar/3bTz2pbnrD"
+                        Foreground="#8B5CF6"
+                        VerticalAlignment="Center"
+                        Padding="0"
+                        MinHeight="0">
+                        <HyperlinkButton.Template>
+                            <ControlTemplate TargetType="HyperlinkButton">
+                                <ContentPresenter
+                                    Content="{TemplateBinding Content}"
+                                    Foreground="{TemplateBinding Foreground}"
+                                    Padding="{TemplateBinding Padding}"
+                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                    VerticalAlignment="Center"/>
+                            </ControlTemplate>
+                        </HyperlinkButton.Template>
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="#8B5CF6"/>
+                    </HyperlinkButton>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

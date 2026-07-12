@@ -23,11 +23,11 @@ public sealed partial class MainPage : Page
         UrlLabel.Text = _loc.UrlLabel;
         UrlTextBox.PlaceholderText = _loc.UrlPlaceholder;
         FolderLabel.Text = _loc.FolderLabel;
-        BrowseButton.Content = _loc.BrowseButton;
+        BrowseButtonText.Text = _loc.BrowseButton;
         QualityLabel.Text = _loc.QualityLabel;
         DownloadButton.Content = _loc.DownloadButton;
         SupportAuthor.Content = _loc.SupportAuthor;
-        OpenFolderButton.Content = _loc.OpenFolderButton;
+        OpenFolderButtonText.Text = _loc.OpenFolderButton;
         AudioTabText.Text = _loc.AudioTab;
         VideoTabText.Text = _loc.VideoTab;
 
@@ -119,7 +119,7 @@ public sealed partial class MainPage : Page
 
         UrlInputBorder.BorderBrush = accentBrush;
         DownloadButton.Background = accentBrush;
-        ProgressBar.Foreground = accentBrush;
+        NeonProgressBar.AccentColor = accentColor;
         AudioQualityComboBox.Visibility = isAudio ? Visibility.Visible : Visibility.Collapsed;
         VideoQualityComboBox.Visibility = isAudio ? Visibility.Collapsed : Visibility.Visible;
 

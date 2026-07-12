@@ -12,6 +12,7 @@ using System.Windows.Input;
 using CommunityToolkit.Mvvm.Input;
 using BaldGrabber.Models;
 using BaldGrabber.Services;
+using Microsoft.UI.Dispatching;
 using Serilog;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -178,6 +179,20 @@ public partial class MainViewModel : INotifyPropertyChanged
         set => SetProperty(ref _progressText, value);
     }
 
+    private string _downloadSpeed = "";
+    public string DownloadSpeed
+    {
+        get => _downloadSpeed;
+        set => SetProperty(ref _downloadSpeed, value);
+    }
+
+    private string _timeRemaining = "";
+    public string TimeRemaining
+    {
+        get => _timeRemaining;
+        set => SetProperty(ref _timeRemaining, value);
+    }
+
     private bool _isDownloading;
     public bool IsDownloading
     {
@@ -236,8 +251,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         get => _videoQualitiesList;
         set => SetProperty(ref _videoQualitiesList, value);
     }
-    private VideoQualityOption VideoPlaceholderQuality { get; } = new() { Id = "", Name = "Выберите качество видео", Description = "" };
-    private VideoQualityOption CheckingFormatsQuality { get; } = new() { Id = "", Name = "Идет проверка доступных форматов", Description = "" };
+    private VideoQualityOption VideoPlaceholderQuality { get; } = new() { Id = "", Name = "", Description = "" };
+    private VideoQualityOption CheckingFormatsQuality { get; } = new() { Id = "", Name = "", Description = "" };
 
     private string _downloadButtonText = "";
     public string DownloadButtonText { get => _downloadButtonText; set => SetProperty(ref _downloadButtonText, value); }
@@ -299,6 +314,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private void ResetVideoQualitySelection()
     {
         HasCheckedVideoFormats = false;
+        VideoPlaceholderQuality.Name = _loc.VideoQualityLabel;
         VideoQualities = new ObservableCollection<VideoQualityOption> { VideoPlaceholderQuality };
         SelectedVideoQuality = VideoPlaceholderQuality;
     }
@@ -309,6 +325,7 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     private void ShowCheckingFormatsQuality()
     {
+        CheckingFormatsQuality.Name = _loc.StatusCheckingFormats;
         VideoQualities = new ObservableCollection<VideoQualityOption> { CheckingFormatsQuality };
         SelectedVideoQuality = CheckingFormatsQuality;
     }
@@ -329,7 +346,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         HasCheckedVideoFormats = true;
     }
 
-    private void UpdateButtonLabel() => DownloadButtonText = SelectedMode == DownloadMode.Video ? "Скачать видео" : "Скачать аудио";
+    private void UpdateButtonLabel() => DownloadButtonText = SelectedMode == DownloadMode.Video ? _loc.VideoDownloadButton : _loc.DownloadButton;
 
     public void ResetState()
     {
@@ -454,11 +471,6 @@ public partial class MainViewModel : INotifyPropertyChanged
             Status = _loc.StatusInvalidUrl;
             return;
         }
-        if (Services.DownloadService.IsPlaylistUrl(Url))
-        {
-            Status = _loc.StatusPlaylist;
-            return;
-        }
         if (string.IsNullOrWhiteSpace(OutputFolder) || !System.IO.Directory.Exists(OutputFolder))
         {
             Status = _loc.StatusSelectFolder;
@@ -496,6 +508,8 @@ public partial class MainViewModel : INotifyPropertyChanged
                     IsIndeterminate = true;
                     Progress = 0;
                     ProgressText = "";
+                    DownloadSpeed = "";
+                    TimeRemaining = "";
                     Status = p switch
                     {
                         -1 => _loc.StatusConverting,
@@ -519,21 +533,50 @@ public partial class MainViewModel : INotifyPropertyChanged
 
             if (string.IsNullOrWhiteSpace(qualityId))
             {
-                Status = SelectedMode == DownloadMode.Video ? "Выберите доступное качество видео" : "Выберите качество аудио";
+                Status = SelectedMode == DownloadMode.Video ? _loc.StatusSelectVideoQuality : _loc.StatusSelectAudioQuality;
                 return;
             }
 
             var timeFrom = string.IsNullOrWhiteSpace(TimeFrom) ? null : TimeFrom;
             var timeTo = string.IsNullOrWhiteSpace(TimeTo) ? null : TimeTo;
-            var (filePath, title, actualQuality) = await _downloadService.DownloadAsync(
-                SelectedMode, Url, qualityId, OutputFolder, timeFrom, timeTo, progress, _cancellationTokenSource.Token);
 
-            DownloadedFilePath = filePath;
-            IsIndeterminate = false;
-            ProgressText = "100%";
-            Status = string.IsNullOrEmpty(actualQuality)
-                ? string.Format(_loc.StatusCompleted, title)
-                : $"{string.Format(_loc.StatusCompleted, title)} ({actualQuality})";
+            var isPlaylist = Services.DownloadService.IsPlaylistUrl(Url);
+            var dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            Action<string, string> onSpeedEta = (speed, eta) =>
+            {
+                dispatcherQueue?.TryEnqueue(() =>
+                {
+                    DownloadSpeed = speed;
+                    TimeRemaining = eta;
+                });
+            };
+
+            if (isPlaylist)
+            {
+                var folderPath = await _downloadService.DownloadPlaylistAsync(
+                    SelectedMode, Url, qualityId, OutputFolder, progress, _cancellationTokenSource.Token, onSpeedEta);
+
+                DownloadedFilePath = folderPath;
+                IsIndeterminate = false;
+                ProgressText = "100%";
+                DownloadSpeed = "";
+                TimeRemaining = "";
+                Status = string.Format(_loc.StatusPlaylistCompleted, System.IO.Path.GetFileName(folderPath));
+            }
+            else
+            {
+                var (filePath, title, actualQuality) = await _downloadService.DownloadAsync(
+                    SelectedMode, Url, qualityId, OutputFolder, timeFrom, timeTo, progress, _cancellationTokenSource.Token, onSpeedEta);
+
+                DownloadedFilePath = filePath;
+                IsIndeterminate = false;
+                ProgressText = "100%";
+                DownloadSpeed = "";
+                TimeRemaining = "";
+                Status = string.IsNullOrEmpty(actualQuality)
+                    ? string.Format(_loc.StatusCompleted, title)
+                    : $"{string.Format(_loc.StatusCompleted, title)} ({actualQuality})";
+            }
         }
         catch (OperationCanceledException)
         {
@@ -604,6 +647,8 @@ public class Localization
     public string StatusInvalidUrl { get; private set; } = "";
     public string StatusPlaylist { get; private set; } = "";
     public string StatusSelectFolder { get; private set; } = "";
+    public string StatusSelectVideoQuality { get; private set; } = "";
+    public string StatusSelectAudioQuality { get; private set; } = "";
     public string StatusDownloading { get; private set; } = "";
     public string StatusConverting { get; private set; } = "";
     public string StatusMerging { get; private set; } = "";
@@ -633,6 +678,8 @@ public class Localization
     public string FragmentClearButton { get; private set; } = "";
     public string FragmentCancelButton { get; private set; } = "";
     public string FragmentErrorText { get; private set; } = "";
+    public string StatusPlaylistCompleted { get; private set; } = "";
+    public string StatusCheckingFormats { get; private set; } = "";
 
     public static Localization Create()
     {
@@ -652,7 +699,7 @@ public class Localization
         UrlLabel = "YouTube Link",
         UrlPlaceholder = "Paste YouTube video link",
         FolderLabel = "Save folder",
-        BrowseButton = "Browse...",
+        BrowseButton = "Select",
         QualityLabel = "Audio quality",
         FragmentLabel = "Audio fragment",
         TimeFromLabel = "Start",
@@ -662,13 +709,15 @@ public class Localization
         FragmentHint = "Leave empty to download full audio. Format: M:SS or HH:MM:SS",
         DownloadButton = "Download audio",
         SupportAuthor = "Support the author",
-        OpenFolderButton = "Open folder",
+        OpenFolderButton = "Open",
         StatusWaiting = "Waiting",
         StatusFolderError = "Folder selection error",
         StatusEnterUrl = "Enter YouTube link",
         StatusInvalidUrl = "Enter valid YouTube link",
         StatusPlaylist = "Playlist links are not supported",
         StatusSelectFolder = "Select save folder",
+        StatusSelectVideoQuality = "Select video quality",
+        StatusSelectAudioQuality = "Select audio quality",
         StatusDownloading = "Downloading...",
         StatusConverting = "Converting to MP3...",
         StatusMerging = "Merging files...",
@@ -697,7 +746,9 @@ public class Localization
         FragmentSaveButton = "Save",
         FragmentClearButton = "Clear",
         FragmentCancelButton = "Cancel",
-        FragmentErrorText = "Enter time in M:SS or HH:MM:SS format"
+        FragmentErrorText = "Enter time in M:SS or HH:MM:SS format",
+        StatusPlaylistCompleted = "Playlist downloaded: {0}",
+        StatusCheckingFormats = "Checking available formats..."
     };
 
     private static Localization CreateRu() => new()
@@ -707,7 +758,7 @@ public class Localization
         UrlLabel = "Ссылка на YouTube",
         UrlPlaceholder = "Вставьте ссылку на YouTube видео",
         FolderLabel = "Папка для сохранения",
-        BrowseButton = "Обзор...",
+        BrowseButton = "Выбрать",
         QualityLabel = "Качество аудио",
         FragmentLabel = "Фрагмент аудио",
         TimeFromLabel = "Старт",
@@ -717,13 +768,15 @@ public class Localization
         FragmentHint = "Оставьте пустым для скачивания полного аудио. Формат: M:SS или HH:MM:SS",
         DownloadButton = "Скачать аудио",
         SupportAuthor = "Поблагодарить автора",
-        OpenFolderButton = "Открыть папку",
+        OpenFolderButton = "Открыть",
         StatusWaiting = "Ожидание",
         StatusFolderError = "Ошибка при выборе папки",
         StatusEnterUrl = "Введите ссылку на YouTube",
         StatusInvalidUrl = "Введите корректную ссылку на YouTube",
         StatusPlaylist = "Ссылки на плейлисты не поддерживаются",
         StatusSelectFolder = "Выберите папку для сохранения",
+        StatusSelectVideoQuality = "Выберите доступное качество видео",
+        StatusSelectAudioQuality = "Выберите качество аудио",
         StatusDownloading = "Загрузка...",
         StatusConverting = "Конвертация в MP3...",
         StatusMerging = "Склейка файлов...",
@@ -752,7 +805,9 @@ public class Localization
         FragmentSaveButton = "Сохранить",
         FragmentClearButton = "Очистить",
         FragmentCancelButton = "Отмена",
-        FragmentErrorText = "Введите время в формате M:SS или HH:MM:SS"
+        FragmentErrorText = "Введите время в формате M:SS или HH:MM:SS",
+        StatusPlaylistCompleted = "Плейлист скачан: {0}",
+        StatusCheckingFormats = "Проверка доступных форматов..."
     };
 
     private static Localization CreateUk() => new()
@@ -762,7 +817,7 @@ public class Localization
         UrlLabel = "Посилання на YouTube",
         UrlPlaceholder = "Вставте посилання на YouTube відео",
         FolderLabel = "Папка для збереження",
-        BrowseButton = "Огляд...",
+        BrowseButton = "Обрати",
         QualityLabel = "Якість аудіо",
         FragmentLabel = "Фрагмент аудіо",
         TimeFromLabel = "Старт",
@@ -772,13 +827,15 @@ public class Localization
         FragmentHint = "Залиште порожнім для завантаження повного аудіо. Формат: M:SS або HH:MM:SS",
         DownloadButton = "Завантажити аудіо",
         SupportAuthor = "Поблагодарити автора",
-        OpenFolderButton = "Відкрити папку",
+        OpenFolderButton = "Відкрити",
         StatusWaiting = "Очікування",
         StatusFolderError = "Помилка при виборі папки",
         StatusEnterUrl = "Введіть посилання на YouTube",
         StatusInvalidUrl = "Введіть коректне посилання на YouTube",
         StatusPlaylist = "Посилання на плейлисти не підтримуються",
         StatusSelectFolder = "Оберіть папку для збереження",
+        StatusSelectVideoQuality = "Оберіть якість відео",
+        StatusSelectAudioQuality = "Оберіть якість аудіо",
         StatusDownloading = "Завантаження...",
         StatusConverting = "Конвертація в MP3...",
         StatusMerging = "З'єднання файлів...",
@@ -807,6 +864,8 @@ public class Localization
         FragmentSaveButton = "Зберегти",
         FragmentClearButton = "Очистити",
         FragmentCancelButton = "Скасувати",
-        FragmentErrorText = "Введіть час у форматі M:SS або HH:MM:SS"
+        FragmentErrorText = "Введіть час у форматі M:SS або HH:MM:SS",
+        StatusPlaylistCompleted = "Плейлист завантажено: {0}",
+        StatusCheckingFormats = "Перевірка доступних форматів..."
     };
 }
