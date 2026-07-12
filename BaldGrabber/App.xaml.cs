@@ -10,6 +10,7 @@ namespace BaldGrabber;
 
 public partial class App : Application
 {
+    private const string SingleInstanceMutexName = @"Local\BaldGrabber.SingleInstance";
     private Window? _window;
     public static Window? MainWindow { get; private set; }
     private Mutex? _mutex;
@@ -40,7 +41,6 @@ public partial class App : Application
         this.UnhandledException += (s, e) =>
         {
             Log.Error(e.Exception, "Необработанное исключение");
-            e.Handled = true;
             Log.CloseAndFlush();
         };
 
@@ -62,10 +62,14 @@ public partial class App : Application
     {
         try
         {
-            _mutex = new Mutex(true, "AudioGrabber_SingleInstance", out bool createdNew);
+            _mutex = new Mutex(true, SingleInstanceMutexName, out bool createdNew);
             if (!createdNew)
             {
                 Log.Warning("Приложение уже запущено");
+                Log.CloseAndFlush();
+                _mutex.Dispose();
+                _mutex = null;
+                Exit();
                 return;
             }
 

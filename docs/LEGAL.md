@@ -1,4 +1,52 @@
+# Legal Information
+
+## License
+
+BaldGrabber is distributed under the MIT license. Full license text: [LICENSE](../LICENSE).
+
+## Permitted Use
+
+BaldGrabber is intended exclusively for downloading content you have the legal right to download. This includes:
+- your own content
+- content under an open license (Creative Commons, etc.)
+- content for which you have obtained permission from the copyright holder
+- content in the public domain
+
+## User Responsibility
+
+The user bears full responsibility for the legality of downloading and using content. Using the app to infringe copyright may result in legal liability under the laws of your country.
+
+## Copyright Notice
+
+Copyright for videos and audio belongs to their creators. Downloading copyrighted content without permission from the copyright holder may violate copyright laws. BaldGrabber does not grant any rights to content and is not responsible for users' actions.
+
+## No Affiliation with YouTube or Google
+
+BaldGrabber is not a product of, endorsed by, or affiliated with YouTube, Google LLC, or their affiliates. The use of YouTube and Google trademarks in the app name does not imply any partnership or endorsement.
+
+## No Warranty of Functionality
+
+YouTube regularly changes its internal formats and APIs. BaldGrabber may temporarily or permanently stop working due to changes on YouTube's side. The author does not guarantee uninterrupted operation of the app and is not obligated to release updates.
+
+## Limitation of Liability
+
+BaldGrabber is distributed "as is," without any warranties, express or implied. The author is not liable for:
+- any damage caused by using the app
+- data loss
+- user's violation of laws
+- inability to download specific content
+
+## Template for Legal Review
+
+This document is a template. When distributing BaldGrabber commercially, it is recommended to have the document reviewed by a qualified attorney for adaptation to the laws of the distribution jurisdiction.
+
+---
+
 # Правовая информация
+
+## Лицензия
+
+BaldGrabber распространяется под лицензией MIT. Полный текст лицензии: [LICENSE](../LICENSE).
 
 ## Допустимое использование
 

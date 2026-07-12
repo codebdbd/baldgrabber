@@ -38,7 +38,8 @@
             <Setter Property="BorderBrush" Value="#3B4256"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Padding" Value="14,0"/>
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -192,7 +193,8 @@
                     Click="AudioTab_Click"
                     Background="Transparent"
                     BorderThickness="0"
-                    Padding="0,12"
+                    Height="40"
+                    Padding="0"
                     HorizontalAlignment="Stretch">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
                         <FontIcon
@@ -214,7 +216,8 @@
                     Click="VideoTab_Click"
                     Background="Transparent"
                     BorderThickness="0"
-                    Padding="0,12"
+                    Height="40"
+                    Padding="0"
                     HorizontalAlignment="Stretch">
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
                         <FontIcon
@@ -234,9 +237,10 @@
         <!-- Main Card -->
         <Border
             Grid.Row="2"
+            VerticalAlignment="Top"
             Background="{StaticResource CardBrush}"
             CornerRadius="20"
-            Padding="22"
+            Padding="22,17,22,22"
             BorderBrush="#3B4256"
             BorderThickness="1">
             <Grid>
@@ -250,7 +254,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- URL Section -->
-                <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                <StackPanel Grid.Row="0" Margin="0,0,0,10">
                     <TextBlock
                         x:Name="UrlLabel"
                         FontSize="14"
@@ -261,29 +265,22 @@
                         x:Name="UrlInputBorder"
                         BorderThickness="2"
                         CornerRadius="10"
-                        Padding="0,4">
+                        Height="44"
+                        Padding="14,0,0,0">
                         <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <FontIcon
-                                Grid.Column="0"
-                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                Glyph="&#xE71B;"
-                                FontSize="18"
-                                Margin="14,6,10,6"
-                                VerticalAlignment="Center"/>
                             <TextBox
-                                Grid.Column="1"
+                                Grid.Column="0"
                                 x:Name="UrlTextBox"
                                 TextChanged="UrlTextBox_TextChanged"
                                 PlaceholderText="Paste YouTube video link"
                                 Background="Transparent"
                                 Foreground="{StaticResource WhiteBrush}"
                                 PlaceholderForeground="#6B7280"
-                                Padding="0,10"
+                                Padding="0"
                                 FontSize="15">
                                 <TextBox.Template>
                                     <ControlTemplate TargetType="TextBox">
@@ -298,7 +295,7 @@
                                 </TextBox.Template>
                             </TextBox>
                             <Button
-                                Grid.Column="2"
+                                Grid.Column="1"
                                 Click="ClearUrlButton_Click"
                                 BorderThickness="0"
                                 Background="Transparent"
@@ -315,7 +312,7 @@
                 </StackPanel>
 
                 <!-- Quality Section (Row 1) -->
-                <StackPanel Grid.Row="1" Margin="0,0,0,12">
+                <StackPanel Grid.Row="1" Margin="0,0,0,10">
                     <TextBlock
                         x:Name="QualityLabel"
                         FontSize="14"
@@ -367,6 +364,7 @@
                             Background="#2A2F42"
                             BorderThickness="0"
                             CornerRadius="10"
+                            Height="40"
                             Padding="0"
                             ToolTipService.ToolTip="Фрагмент"
                             HorizontalAlignment="Stretch"
@@ -382,7 +380,7 @@
                 </StackPanel>
 
                 <!-- Folder Section (Row 2) -->
-                <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                <StackPanel Grid.Row="2" Margin="0,0,0,16">
                     <TextBlock
                         x:Name="FolderLabel"
                         FontSize="14"
@@ -392,8 +390,8 @@
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="112"/>
+                            <ColumnDefinition Width="112"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Path input -->
@@ -403,8 +401,8 @@
                             BorderBrush="#3B4256"
                             BorderThickness="1"
                             CornerRadius="10"
-                            Padding="14,8"
-                            MinHeight="38">
+                            Height="42"
+                            Padding="14,0">
                             <TextBox
                                 x:Name="FolderTextBox"
                                 Text="{Binding OutputFolder, Mode=TwoWay}"
@@ -438,9 +436,9 @@
                             Foreground="{StaticResource WhiteBrush}"
                             BorderThickness="0"
                             CornerRadius="10"
-                            Padding="14,8"
-                            MinHeight="38"
-                            VerticalAlignment="Stretch">
+                            Height="40"
+                            Padding="14,0"
+                            HorizontalAlignment="Stretch">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <FontIcon
                                     FontFamily="{ThemeResource SymbolThemeFontFamily}"
@@ -463,10 +461,11 @@
                             Foreground="{StaticResource WhiteBrush}"
                             BorderThickness="0"
                             CornerRadius="10"
-                            Padding="14,8"
-                            MinHeight="38"
+                            Height="40"
+                            Padding="14,0"
                             IsEnabled="{Binding DownloadedFilePath, Converter={StaticResource NullToBoolConverter}}"
-                            VerticalAlignment="Stretch">
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <FontIcon
                                     FontFamily="{ThemeResource SymbolThemeFontFamily}"
@@ -482,22 +481,90 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- Download Button (Row 3) -->
-                <Button
-                    Grid.Row="3"
-                    x:Name="DownloadButton"
-                    Command="{Binding DownloadCommand}"
-                    Foreground="White"
-                    BorderThickness="0"
-                    CornerRadius="12"
-                    Padding="0,12"
-                    FontSize="16"
-                    FontWeight="SemiBold"
-                    HorizontalAlignment="Stretch"
-                    Margin="0,0,0,12"/>
+                <!-- Download and Cancel Buttons (Row 3) -->
+                <Grid Grid.Row="3" ColumnSpacing="8" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="112"/>
+                        <ColumnDefinition Width="112"/>
+                    </Grid.ColumnDefinitions>
+                    <Button
+                        Grid.Column="0"
+                        x:Name="DownloadButton"
+                        Command="{Binding DownloadCommand}"
+                        IsEnabled="{Binding CanDownload}"
+                        Foreground="White"
+                        BorderThickness="0"
+                        CornerRadius="12"
+                        Height="40"
+                        Padding="0"
+                        FontSize="16"
+                        FontWeight="SemiBold"
+                        HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                            <FontIcon
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Glyph="&#xE896;"
+                                FontSize="18"/>
+                            <TextBlock
+                                x:Name="DownloadButtonLabel"
+                                FontSize="16"
+                                FontWeight="SemiBold"
+                                VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button
+                        Grid.Column="1"
+                        x:Name="CancelDownloadButton"
+                        Command="{Binding CancelDownloadCommand}"
+                        IsEnabled="{Binding IsDownloading}"
+                        Background="#2A2F42"
+                        Foreground="{StaticResource WhiteBrush}"
+                        BorderThickness="0"
+                        CornerRadius="10"
+                        Height="40"
+                        Padding="14,0"
+                        HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Glyph="&#xE71A;"
+                                FontSize="16"
+                                VerticalAlignment="Center"/>
+                            <TextBlock
+                                x:Name="CancelDownloadButtonText"
+                                FontSize="14"
+                                VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <HyperlinkButton
+                        Grid.Column="2"
+                        x:Name="SupportAuthor"
+                        NavigateUri="https://codebdbd.github.io/"
+                        Background="#2A2F42"
+                        Foreground="{StaticResource WhiteBrush}"
+                        BorderThickness="0"
+                        CornerRadius="10"
+                        Height="40"
+                        Padding="14,0"
+                        HorizontalAlignment="Stretch"
+                        VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Glyph="&#xEC32;"
+                                FontSize="16"
+                                VerticalAlignment="Center"/>
+                            <TextBlock
+                                x:Name="SupportAuthorText"
+                                FontSize="14"
+                                VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </HyperlinkButton>
+                </Grid>
 
                 <!-- Status Section (Row 4) -->
-                <StackPanel Grid.Row="4" Margin="0,0,0,8">
+                <StackPanel Grid.Row="4">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -538,40 +605,6 @@
                     </Grid>
                 </StackPanel>
 
-                <!-- Footer (Row 5) — only Support Author -->
-                <StackPanel
-                    Grid.Row="5"
-                    Orientation="Horizontal"
-                    Spacing="6"
-                    VerticalAlignment="Center">
-                    <FontIcon
-                        FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                        Glyph="&#xEC32;"
-                        FontSize="16"
-                        Foreground="#6B7280"
-                        VerticalAlignment="Center"/>
-                    <HyperlinkButton
-                        x:Name="SupportAuthor"
-                        NavigateUri="https://send.monobank.ua/jar/3bTz2pbnrD"
-                        Foreground="#8B5CF6"
-                        VerticalAlignment="Center"
-                        Padding="0"
-                        MinHeight="0">
-                        <HyperlinkButton.Template>
-                            <ControlTemplate TargetType="HyperlinkButton">
-                                <ContentPresenter
-                                    Content="{TemplateBinding Content}"
-                                    Foreground="{TemplateBinding Foreground}"
-                                    Padding="{TemplateBinding Padding}"
-                                    HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                    VerticalAlignment="Center"/>
-                            </ControlTemplate>
-                        </HyperlinkButton.Template>
-                        <TextBlock
-                            FontSize="13"
-                            Foreground="#8B5CF6"/>
-                    </HyperlinkButton>
-                </StackPanel>
             </Grid>
         </Border>
     </Grid>

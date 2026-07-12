@@ -25,8 +25,9 @@ public sealed partial class MainPage : Page
         FolderLabel.Text = _loc.FolderLabel;
         BrowseButtonText.Text = _loc.BrowseButton;
         QualityLabel.Text = _loc.QualityLabel;
-        DownloadButton.Content = _loc.DownloadButton;
-        SupportAuthor.Content = _loc.SupportAuthor;
+        DownloadButtonLabel.Text = _loc.DownloadButton;
+        CancelDownloadButtonText.Text = _loc.CancelButton;
+        SupportAuthorText.Text = _loc.SupportAuthor;
         OpenFolderButtonText.Text = _loc.OpenFolderButton;
         AudioTabText.Text = _loc.AudioTab;
         VideoTabText.Text = _loc.VideoTab;
@@ -128,7 +129,7 @@ public sealed partial class MainPage : Page
         VideoQualityComboBox.Visibility = isAudio ? Visibility.Collapsed : Visibility.Visible;
 
         QualityLabel.Text = isAudio ? _loc.QualityLabel : _loc.VideoQualityLabel;
-        DownloadButton.Content = isAudio ? _loc.DownloadButton : _loc.VideoDownloadButton;
+        DownloadButtonLabel.Text = isAudio ? _loc.DownloadButton : _loc.VideoDownloadButton;
 
         if (DataContext is ViewModels.MainViewModel vm)
             UpdateFragmentButtonStyle(vm);
@@ -149,6 +150,7 @@ public sealed partial class MainPage : Page
             otherTabText.Foreground = new SolidColorBrush(Color.FromArgb(255, 195, 198, 212));
             if (otherTabIcon != null)
                 otherTabIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 195, 198, 212));
+            ToolTipService.SetToolTip(otherTabButton, null);
         }
         else
         {
@@ -157,19 +159,44 @@ public sealed partial class MainPage : Page
             otherTabText.Foreground = disabledBrush;
             if (otherTabIcon != null)
                 otherTabIcon.Foreground = disabledBrush;
+            ToolTipService.SetToolTip(otherTabButton, _loc.TabDisabledTooltip);
         }
+    }
+
+    private void ShowDownloadInProgressToast()
+    {
+        var toast = new InfoBar
+        {
+            IsOpen = true,
+            IsClosable = true,
+            Severity = InfoBarSeverity.Informational,
+            Title = _loc.TabDisabledToast,
+            Margin = new Thickness(0, 8, 0, 0)
+        };
+        toast.Closed += (_, _) => { if (MainPageRoot.Children.Contains(toast)) MainPageRoot.Children.Remove(toast); };
+        MainPageRoot.Children.Add(toast);
+        _ = Task.Delay(3000).ContinueWith(_ => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (MainPageRoot.Children.Contains(toast))
+            {
+                toast.IsOpen = false;
+                MainPageRoot.Children.Remove(toast);
+            }
+        }));
     }
 
     private void AudioTab_Click(object sender, RoutedEventArgs e)
     {
-        if (DataContext is ViewModels.MainViewModel vm)
-            vm.SelectedMode = DownloadMode.Audio;
+        if (DataContext is not ViewModels.MainViewModel vm) return;
+        if (!AudioTabButton.IsEnabled) { ShowDownloadInProgressToast(); return; }
+        vm.SelectedMode = DownloadMode.Audio;
     }
 
     private void VideoTab_Click(object sender, RoutedEventArgs e)
     {
-        if (DataContext is ViewModels.MainViewModel vm)
-            vm.SelectedMode = DownloadMode.Video;
+        if (DataContext is not ViewModels.MainViewModel vm) return;
+        if (!VideoTabButton.IsEnabled) { ShowDownloadInProgressToast(); return; }
+        vm.SelectedMode = DownloadMode.Video;
     }
 
     private void UrlTextBox_TextChanged(object sender, TextChangedEventArgs e)

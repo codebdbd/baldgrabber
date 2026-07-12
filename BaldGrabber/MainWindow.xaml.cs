@@ -15,7 +15,7 @@ public sealed partial class MainWindow : Window
         var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
         var appWindow = AppWindow.GetFromWindowId(windowId);
 
-        appWindow.Resize(new Windows.Graphics.SizeInt32 { Width = 620, Height = 624 });
+        appWindow.Resize(new Windows.Graphics.SizeInt32 { Width = 620, Height = 568 });
 
         var presenter = appWindow.Presenter as OverlappedPresenter;
         if (presenter != null)

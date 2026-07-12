@@ -1,3 +1,50 @@
+# Privacy
+
+## What data is stored locally
+
+The app stores the following data on your computer:
+
+**Settings** (`settings.json`):
+- last selected mode (Audio / Video)
+- last selected quality
+- path to the last save folder
+
+**Logs** (`log-*.txt` files):
+- URL of downloaded videos (domain and path, without authentication parameters)
+- operation status (download, conversion, errors)
+- error messages from yt-dlp and FFmpeg
+- technical information (file sizes, versions, execution time)
+
+## Does the app send telemetry
+
+No. BaldGrabber does not collect or send any telemetry, analytics, or usage statistics. There are no servers that the app sends data to.
+
+## Where the app sends network requests
+
+BaldGrabber sends requests only through yt-dlp:
+- YouTube API for fetching video information and available format list
+- YouTube CDN servers for downloading media files
+
+There are no other network requests. The app does not access third-party servers, does not send system data, and does not perform background requests.
+
+## Deleting settings and logs
+
+Delete manually:
+- **Settings:** `%APPDATA%\BaldGrabber\settings.json` (installer version) or `Data\settings.json` in the portable folder root — two levels above `BaldGrabber.exe` (portable version)
+- **Logs:** `%APPDATA%\AudioGrabber\Logs\` (installer version) or `Data\Logs\` in the portable folder root (portable version)
+- **Temp files:** `%TEMP%\BaldGrabber\` — automatically deleted after download, but may remain after a crash
+
+## Prohibition on storing private data in logs
+
+The app does not store the following in logs:
+- cookies
+- authentication tokens
+- private links (with parameters `sig=`, `token=`, `key=`, `session=`)
+
+URLs in logs are truncated to `https://www.youtube.com/watch` — domain and path without query parameters (video ID and other parameters are removed).
+
+---
+
 # Конфиденциальность
 
 ## Какие данные хранятся локально
@@ -41,4 +88,4 @@ BaldGrabber отправляет запросы только через yt-dlp:
 - токены аутентификации
 - приватные ссылки (с параметрами `sig=`, `token=`, `key=`, `session=`)
 
-URL в логах обрезается до вида `https://youtube.com/watch?v=ID` — без параметров запроса.
+URL в логах обрезается до вида `https://www.youtube.com/watch` — домен и путь без параметров запроса (video ID и прочие параметры удаляются).

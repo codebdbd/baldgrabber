@@ -1,3 +1,125 @@
+# Troubleshooting
+
+## Link not recognized
+
+**Cause:** The link does not point to YouTube or is in an incorrect format.
+
+**Solution:**
+- Make sure the link starts with `https://www.youtube.com/`, `https://youtube.com/`, `https://youtu.be/`, `https://m.youtube.com/` or `https://music.youtube.com/`
+- Copy the link again from the browser address bar
+- Do not use shortened links (bit.ly, etc.)
+
+## Formats not loading / not showing in list
+
+**Cause:** YouTube is temporarily unavailable, API limit has been reached, or the video has been deleted/made private.
+
+**Solution:**
+- Check if the video opens in a browser
+- Wait a few minutes and try again
+- If the video format list is empty, try a different format or select another video
+
+## Download not starting
+
+**Cause:** The "Download" button is inactive.
+
+**Solution:**
+- Check that the YouTube link is pasted correctly
+- Check that the save folder is selected and exists
+- In video mode, wait for format detection to complete (the quality list should load)
+- Make sure a quality format is selected (the list should not show "...")
+
+## yt-dlp not found
+
+**Cause:** The `yt-dlp.exe` file is missing from the `Tools` folder next to the app.
+
+**Solution:**
+- Check that the `Tools` folder exists next to `BaldGrabber.exe`
+- It should contain `yt-dlp.exe` and `ffmpeg.exe`
+- If the files are missing — download the latest version of yt-dlp from https://github.com/yt-dlp/yt-dlp/releases and place `yt-dlp.exe` in the `Tools` folder
+
+## FFmpeg not found
+
+**Cause:** The `ffmpeg.exe` file is missing from the `Tools` folder next to the app.
+
+**Solution:**
+- Download a static build of FFmpeg from https://www.gyan.dev/ffmpeg/builds/
+- Extract `ffmpeg.exe` and place it in the `Tools` folder next to `BaldGrabber.exe`
+- Video downloads and MP3 conversion do not work without FFmpeg
+
+## Video downloaded without sound
+
+**Cause:** YouTube delivers video and audio as separate streams, and merging was not performed.
+
+**Solution:**
+- Make sure FFmpeg is in the `Tools` folder
+- Try selecting a different video quality
+- The log may show a `[Merger]` error — this indicates a problem with FFmpeg
+
+## Audio and video merge error
+
+**Cause:** Incompatible stream formats or missing FFmpeg.
+
+**Solution:**
+- Make sure you are using the latest version of FFmpeg
+- Try selecting a different resolution
+- If the error persists — select "Best" as video quality
+
+## Not enough disk space
+
+**Cause:** Insufficient free space on the disk.
+
+**Solution:**
+- Video in 4K can be several gigabytes
+- Check free space on the target disk
+- Select a folder on a disk with sufficient space
+
+## No access to folder
+
+**Cause:** The app does not have write permissions for the selected folder.
+
+**Solution:**
+- Select a different folder (e.g., "Downloads" or "Documents")
+- Do not use system folders (Windows, Program Files)
+- Check if the folder is open in another process
+
+## App stopped working after YouTube updates
+
+**Cause:** YouTube changed its internal format, yt-dlp is outdated.
+
+**Solution:**
+- Download the latest version of yt-dlp from https://github.com/yt-dlp/yt-dlp/releases
+- Replace `yt-dlp.exe` in the `Tools` folder
+- Restart the app
+
+## Antivirus blocking the file
+
+**Cause:** Antivirus detects yt-dlp as a potentially unwanted program.
+
+**Solution:**
+- Add the BaldGrabber folder to antivirus exceptions
+- This is a false positive — yt-dlp does not contain malicious code
+- If needed, download yt-dlp from the official repository and verify the hash
+
+## App doesn't launch / crashes immediately
+
+**Cause:** Required Windows components are missing.
+
+**Solution:**
+- Install the latest Windows 10/11 update package
+- Install the Windows App SDK runtime from https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads
+- Make sure the system is 64-bit
+
+## Playlist not downloading completely
+
+**Cause:** Unstable connection or temporary YouTube error.
+
+**Solution:**
+- The app automatically retries failed tracks
+- For large playlists — ensure a stable internet connection
+- You can retry the download — already downloaded tracks will be skipped
+
+---
+
 # Решение проблем
 
 ## Ссылка не распознаётся
@@ -5,7 +127,7 @@
 **Причина:** Ссылка ведёт не на YouTube или введена в неверном формате.
 
 **Решение:**
-- Убедитесь, что ссылка начинается с `https://www.youtube.com/`, `https://youtu.be/`, `https://m.youtube.com/` или `https://music.youtube.com/`
+- Убедитесь, что ссылка начинается с `https://www.youtube.com/`, `https://youtube.com/`, `https://youtu.be/`, `https://m.youtube.com/` или `https://music.youtube.com/`
 - Скопируйте ссылку заново из адресной строки браузера
 - Не используйте сокращённые ссылки (bit.ly и т.д.)
 

@@ -74,6 +74,14 @@ public class DownloadService
         return uri.AbsolutePath.Contains("playlist") || uri.Query.Contains("list=");
     }
 
+    public static bool IsChannelUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (!AllowedHosts.Contains(uri.Host)) return false;
+        var path = uri.AbsolutePath;
+        return path.Contains("/@") || path.Contains("/c/") || path.Contains("/user/") || path.Contains("/channel/");
+    }
+
     public async Task<(string filePath, string title, string actualQuality)> DownloadAsync(
         DownloadMode mode, string url, string quality, string outputFolder,
         string? timeFrom, string? timeTo,
@@ -651,7 +659,7 @@ public class DownloadService
         process.StartInfo.ArgumentList.Add("--encoding"); process.StartInfo.ArgumentList.Add("utf-8");
         process.StartInfo.ArgumentList.Add("--flat-playlist"); process.StartInfo.ArgumentList.Add("--dump-json");
         process.StartInfo.ArgumentList.Add("--no-download"); process.StartInfo.ArgumentList.Add("--no-warnings");
-        process.StartInfo.ArgumentList.Add("--ignore-config"); process.StartInfo.ArgumentList.Add("--no-playlist");
+        process.StartInfo.ArgumentList.Add("--ignore-config");
         process.StartInfo.ArgumentList.Add(url);
 
         var output = new System.Text.StringBuilder();
@@ -677,8 +685,17 @@ public class DownloadService
                 using var doc = JsonDocument.Parse(line);
                 var root = doc.RootElement;
 
-                if (root.TryGetProperty("title", out var titleProp))
-                    playlistTitle = titleProp.GetString() ?? playlistTitle;
+                if (root.TryGetProperty("playlist_title", out var playlistTitleProp) &&
+                    !string.IsNullOrWhiteSpace(playlistTitleProp.GetString()))
+                {
+                    playlistTitle = playlistTitleProp.GetString()!;
+                }
+                else if (playlistTitle == "Playlist" &&
+                         root.TryGetProperty("channel", out var channelProp) &&
+                         !string.IsNullOrWhiteSpace(channelProp.GetString()))
+                {
+                    playlistTitle = channelProp.GetString()!;
+                }
 
                 if (root.TryGetProperty("url", out var urlProp))
                 {
@@ -749,6 +766,7 @@ public class DownloadService
         if (failedTracks.Count > 0)
         {
             Log.Information("Retrying {Count} failed tracks", failedTracks.Count);
+            var permanentlyFailedTracks = new List<(int index, string url, string title)>();
             foreach (var (index, trackUrl, trackTitle) in failedTracks)
             {
                 ct.ThrowIfCancellationRequested();
@@ -768,8 +786,13 @@ public class DownloadService
                     progress.Report(overallProgress);
                 });
 
-                await DownloadPlaylistTrack(mode, quality, qualityArg, extension, trackUrl, trackTitle, trackNumber, playlistFolder, trackProgress, onSpeedEta, ct);
+                var success = await DownloadPlaylistTrack(mode, quality, qualityArg, extension, trackUrl, trackTitle, trackNumber, playlistFolder, trackProgress, onSpeedEta, ct);
+                if (!success)
+                    permanentlyFailedTracks.Add((index, trackUrl, trackTitle));
             }
+
+            if (permanentlyFailedTracks.Count > 0)
+                throw new InvalidOperationException($"Failed to download {permanentlyFailedTracks.Count} of {tracks.Count} playlist items");
         }
 
         progress.Report(1.0);
@@ -788,7 +811,7 @@ public class DownloadService
         var finalPath = Path.Combine(playlistFolder, trackFileName);
 
         using var trackCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        trackCts.CancelAfter(TimeSpan.FromMinutes(1));
+        trackCts.CancelAfter(DownloadTimeout);
 
         try
         {
