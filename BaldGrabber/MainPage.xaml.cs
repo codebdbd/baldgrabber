@@ -38,11 +38,15 @@ public sealed partial class MainPage : Page
             if (e.PropertyName == nameof(vm.IsDownloading))
             {
                 if (vm.IsDownloading)
+                {
                     StatusPulseStoryboard.Begin();
+                    SetOtherTabEnabled(vm.SelectedMode, false);
+                }
                 else
                 {
                     StatusPulseStoryboard.Stop();
                     StatusText.Opacity = 1;
+                    SetOtherTabEnabled(vm.SelectedMode, true);
                 }
             }
             else if (e.PropertyName == nameof(vm.IsCheckingFormats))
@@ -128,6 +132,32 @@ public sealed partial class MainPage : Page
 
         if (DataContext is ViewModels.MainViewModel vm)
             UpdateFragmentButtonStyle(vm);
+    }
+
+    private void SetOtherTabEnabled(DownloadMode currentMode, bool enabled)
+    {
+        var otherTabButton = currentMode == DownloadMode.Audio ? VideoTabButton : AudioTabButton;
+        var otherTabBorder = currentMode == DownloadMode.Audio ? VideoTabBorder : AudioTabBorder;
+        var otherTabText = currentMode == DownloadMode.Audio ? VideoTabText : AudioTabText;
+        var otherTabIcon = FindChild<FontIcon>(otherTabButton);
+
+        otherTabButton.IsEnabled = enabled;
+
+        if (enabled)
+        {
+            otherTabBorder.Opacity = 1.0;
+            otherTabText.Foreground = new SolidColorBrush(Color.FromArgb(255, 195, 198, 212));
+            if (otherTabIcon != null)
+                otherTabIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 195, 198, 212));
+        }
+        else
+        {
+            otherTabBorder.Opacity = 0.4;
+            var disabledBrush = new SolidColorBrush(Color.FromArgb(255, 100, 100, 100));
+            otherTabText.Foreground = disabledBrush;
+            if (otherTabIcon != null)
+                otherTabIcon.Foreground = disabledBrush;
+        }
     }
 
     private void AudioTab_Click(object sender, RoutedEventArgs e)

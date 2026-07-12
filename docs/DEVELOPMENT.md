@@ -102,10 +102,10 @@ process.StartInfo.ArgumentList.Add("utf-8");
 
 ## Расположение настроек и журналов
 
-Портативная версия (если рядом с `BaldGrabber.exe` существует `../../Data/`):
-- Настройки: `Data/settings.json`
-- Журналы: `Data/Logs/log-*.txt`
-- Временные файлы: `Data/Temp/`
+Портативная версия (если на два уровня выше `BaldGrabber.exe` существует папка `Data/`):
+- Настройки: `../../Data/settings.json` (относительно exe)
+- Журналы: `../../Data/Logs/log-*.txt`
+- Временные файлы: `../../Data/Temp/`
 
 Установочная версия:
 - Настройки: `%APPDATA%/BaldGrabber/settings.json`
