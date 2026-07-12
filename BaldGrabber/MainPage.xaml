@@ -28,6 +28,7 @@
         <SolidColorBrush x:Key="SecondaryBrush" Color="#C3C6D4"/>
         <SolidColorBrush x:Key="ErrorBrush" Color="#EF4444"/>
         <SolidColorBrush x:Key="SuccessBrush" Color="#22C55E"/>
+        <SolidColorBrush x:Key="CoffeeBrush" Color="#C58B5A"/>
         <SolidColorBrush x:Key="TabInactiveBrush" Color="#2A2F42"/>
         <SolidColorBrush x:Key="TabActiveAudioBrush" Color="#8B5CF6"/>
         <SolidColorBrush x:Key="TabActiveVideoBrush" Color="#06B6D4"/>
@@ -243,6 +244,17 @@
             Padding="22,17,22,22"
             BorderBrush="#3B4256"
             BorderThickness="1">
+            <Border.Resources>
+                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#32374A"/>
+                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#24293A"/>
+                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#FFFFFF"/>
+                <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent"/>
+                <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent"/>
+                <SolidColorBrush x:Key="HyperlinkButtonBackgroundPointerOver" Color="#32374A"/>
+                <SolidColorBrush x:Key="HyperlinkButtonBackgroundPressed" Color="#24293A"/>
+                <SolidColorBrush x:Key="HyperlinkButtonForegroundPointerOver" Color="#FFFFFF"/>
+                <SolidColorBrush x:Key="HyperlinkButtonBorderBrushPointerOver" Color="Transparent"/>
+            </Border.Resources>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -361,6 +373,7 @@
                             x:Name="FragmentButton"
                             Grid.Column="1"
                             Click="FragmentButton_Click"
+                            UseSystemFocusVisuals="False"
                             Background="#2A2F42"
                             BorderThickness="0"
                             CornerRadius="10"
@@ -432,6 +445,7 @@
                             Grid.Column="1"
                             x:Name="BrowseButton"
                             Command="{Binding BrowseFolderCommand}"
+                            UseSystemFocusVisuals="False"
                             Background="#2A2F42"
                             Foreground="{StaticResource WhiteBrush}"
                             BorderThickness="0"
@@ -457,6 +471,7 @@
                             Grid.Column="2"
                             x:Name="OpenFolderButtonInline"
                             Command="{Binding OpenFolderCommand}"
+                            UseSystemFocusVisuals="False"
                             Background="#2A2F42"
                             Foreground="{StaticResource WhiteBrush}"
                             BorderThickness="0"
@@ -493,6 +508,7 @@
                         x:Name="DownloadButton"
                         Command="{Binding DownloadCommand}"
                         IsEnabled="{Binding CanDownload}"
+                        UseSystemFocusVisuals="False"
                         Foreground="White"
                         BorderThickness="0"
                         CornerRadius="12"
@@ -501,6 +517,10 @@
                         FontSize="16"
                         FontWeight="SemiBold"
                         HorizontalAlignment="Stretch">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#8B5CF6"/>
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#7C4FE0"/>
+                        </Button.Resources>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
                             <FontIcon
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
@@ -518,6 +538,7 @@
                         x:Name="CancelDownloadButton"
                         Command="{Binding CancelDownloadCommand}"
                         IsEnabled="{Binding IsDownloading}"
+                        UseSystemFocusVisuals="False"
                         Background="#2A2F42"
                         Foreground="{StaticResource WhiteBrush}"
                         BorderThickness="0"
@@ -541,6 +562,7 @@
                         Grid.Column="2"
                         x:Name="SupportAuthor"
                         NavigateUri="https://codebdbd.github.io/"
+                        UseSystemFocusVisuals="False"
                         Background="#2A2F42"
                         Foreground="{StaticResource WhiteBrush}"
                         BorderThickness="0"
@@ -551,13 +573,16 @@
                         VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon
+                                x:Name="SupportAuthorIcon"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                 Glyph="&#xEC32;"
                                 FontSize="16"
+                                Foreground="{StaticResource CoffeeBrush}"
                                 VerticalAlignment="Center"/>
                             <TextBlock
                                 x:Name="SupportAuthorText"
                                 FontSize="14"
+                                Foreground="#E5D0BC"
                                 VerticalAlignment="Center"/>
                         </StackPanel>
                     </HyperlinkButton>
@@ -577,6 +602,7 @@
                             FontSize="14"
                             Foreground="{StaticResource WhiteBrush}"/>
                         <TextBlock
+                            x:Name="ProgressTextBlock"
                             Grid.Column="1"
                             Text="{Binding ProgressText}"
                             FontSize="14"

@@ -124,6 +124,11 @@ public sealed partial class MainPage : Page
 
         UrlInputBorder.BorderBrush = accentBrush;
         DownloadButton.Background = accentBrush;
+        ((SolidColorBrush)DownloadButton.Resources["ButtonBackgroundPointerOver"]).Color = accentColor;
+        ((SolidColorBrush)DownloadButton.Resources["ButtonBackgroundPressed"]).Color = isAudio
+            ? Color.FromArgb(255, 124, 79, 224)
+            : Color.FromArgb(255, 5, 157, 181);
+        ProgressTextBlock.Foreground = accentBrush;
         NeonProgressBar.AccentColor = accentColor;
         AudioQualityComboBox.Visibility = isAudio ? Visibility.Visible : Visibility.Collapsed;
         VideoQualityComboBox.Visibility = isAudio ? Visibility.Collapsed : Visibility.Visible;
