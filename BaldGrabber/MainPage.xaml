@@ -38,7 +38,7 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderBrush" Value="#3B4256"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Height" Value="42"/>
             <Setter Property="Padding" Value="14,0"/>
             <Setter Property="FontSize" Value="15"/>
@@ -188,7 +188,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border x:Name="AudioTabBorder" Grid.Column="0" CornerRadius="12" Padding="0">
+            <Border x:Name="AudioTabBorder" Grid.Column="0" CornerRadius="8" Padding="0">
                 <Button
                     x:Name="AudioTabButton"
                     Click="AudioTab_Click"
@@ -211,7 +211,7 @@
                 </Button>
             </Border>
 
-            <Border x:Name="VideoTabBorder" Grid.Column="2" CornerRadius="12" Padding="0">
+            <Border x:Name="VideoTabBorder" Grid.Column="2" CornerRadius="8" Padding="0">
                 <Button
                     x:Name="VideoTabButton"
                     Click="VideoTab_Click"
@@ -276,7 +276,7 @@
                     <Border
                         x:Name="UrlInputBorder"
                         BorderThickness="2"
-                        CornerRadius="10"
+                        CornerRadius="8"
                         Height="44"
                         Padding="14,0,0,0">
                         <Grid>
@@ -376,7 +376,7 @@
                             UseSystemFocusVisuals="False"
                             Background="#2A2F42"
                             BorderThickness="0"
-                            CornerRadius="10"
+                            CornerRadius="8"
                             Height="40"
                             Padding="0"
                             ToolTipService.ToolTip="Фрагмент"
@@ -413,7 +413,7 @@
                             Background="#181D2C"
                             BorderBrush="#3B4256"
                             BorderThickness="1"
-                            CornerRadius="10"
+                            CornerRadius="8"
                             Height="42"
                             Padding="14,0">
                             <TextBox
@@ -449,7 +449,7 @@
                             Background="#2A2F42"
                             Foreground="{StaticResource WhiteBrush}"
                             BorderThickness="0"
-                            CornerRadius="10"
+                            CornerRadius="8"
                             Height="40"
                             Padding="14,0"
                             HorizontalAlignment="Stretch">
@@ -475,7 +475,7 @@
                             Background="#2A2F42"
                             Foreground="{StaticResource WhiteBrush}"
                             BorderThickness="0"
-                            CornerRadius="10"
+                            CornerRadius="8"
                             Height="40"
                             Padding="14,0"
                             IsEnabled="{Binding DownloadedFilePath, Converter={StaticResource NullToBoolConverter}}"
@@ -511,7 +511,7 @@
                         UseSystemFocusVisuals="False"
                         Foreground="White"
                         BorderThickness="0"
-                        CornerRadius="12"
+                        CornerRadius="8"
                         Height="40"
                         Padding="0"
                         FontSize="16"
@@ -542,7 +542,7 @@
                         Background="#2A2F42"
                         Foreground="{StaticResource WhiteBrush}"
                         BorderThickness="0"
-                        CornerRadius="10"
+                        CornerRadius="8"
                         Height="40"
                         Padding="14,0"
                         HorizontalAlignment="Stretch">
@@ -566,7 +566,7 @@
                         Background="#2A2F42"
                         Foreground="{StaticResource WhiteBrush}"
                         BorderThickness="0"
-                        CornerRadius="10"
+                        CornerRadius="8"
                         Height="40"
                         Padding="14,0"
                         HorizontalAlignment="Stretch"

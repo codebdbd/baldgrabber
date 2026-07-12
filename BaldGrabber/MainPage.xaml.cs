@@ -371,7 +371,7 @@ public sealed partial class MainPage : Page
         Foreground = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)),
         BorderBrush = new SolidColorBrush(Color.FromArgb(255, 75, 85, 110)),
         BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(6),
+        CornerRadius = new CornerRadius(8),
         MinWidth = 92,
         MinHeight = 32,
         Padding = new Thickness(12, 6, 12, 6),
