@@ -68,6 +68,10 @@ public class DownloadService
         return AllowedHosts.Contains(uri.Host);
     }
 
+    private static bool IsYouTubeMusicUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        uri.Host.Equals("music.youtube.com", StringComparison.OrdinalIgnoreCase);
+
     public static bool IsPlaylistUrl(string url)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
@@ -110,7 +114,7 @@ public class DownloadService
             // Always download thumbnail for audio
             if (mode == DownloadMode.Audio)
             {
-                thumbnailPath = await DownloadThumbnailAsync(url, jobId, cancellationToken);
+                thumbnailPath = await DownloadThumbnailAsync(url, jobId, IsYouTubeMusicUrl(url), cancellationToken);
             }
 
             var exitCode = await Task.Run(() => RunYtDlp(mode, quality, qualityArg, tempFilePath, url, progress, cancellationToken, onSpeedEta: onSpeedEta), cancellationToken);
@@ -141,7 +145,7 @@ public class DownloadService
             {
                 progress.Report(-5);
                 var withThumbnailPath = Path.Combine(_tempFolder, $"with_thumb_{jobId}{extension}");
-                var thumbExitCode = await Task.Run(() => RunFfmpegEmbedThumbnail(processedFile, thumbnailPath, withThumbnailPath, mode, cancellationToken), cancellationToken);
+                var thumbExitCode = await Task.Run(() => RunFfmpegEmbedAudioCover(processedFile, thumbnailPath, withThumbnailPath, cancellationToken), cancellationToken);
                 if (thumbExitCode != 0)
                 {
                     Log.Warning("Failed to embed thumbnail, continuing without it");
@@ -313,7 +317,7 @@ public class DownloadService
         }
     }
 
-    private async Task<string?> DownloadThumbnailAsync(string url, string jobId, CancellationToken cancellationToken)
+    private async Task<string?> DownloadThumbnailAsync(string url, string jobId, bool cropToSquare, CancellationToken cancellationToken)
     {
         try
         {
@@ -364,22 +368,33 @@ public class DownloadService
             var possibleFiles = Directory.GetFiles(_tempFolder, $"thumb_{jobId}*");
             Log.Information("Found {Count} possible thumbnail files: {Files}", possibleFiles.Length, string.Join(", ", possibleFiles));
 
-            // Select square thumbnail (width == height) with max size, or largest non-square
+            // YouTube Music keeps the existing square-first behavior.
+            // Regular YouTube prefers the largest landscape thumbnail so no content is lost.
             string? selectedThumbnail = null;
             int maxSquareSize = 0;
             int maxSize = 0;
+            long maxLandscapeArea = 0;
             foreach (var file in possibleFiles)
             {
                 try
                 {
                     using var image = SixLabors.ImageSharp.Image.Load(file);
                     var size = Math.Max(image.Width, image.Height);
-                    if (image.Width == image.Height && image.Width > maxSquareSize)
+                    if (!cropToSquare && image.Width > image.Height)
+                    {
+                        var area = (long)image.Width * image.Height;
+                        if (area > maxLandscapeArea)
+                        {
+                            maxLandscapeArea = area;
+                            selectedThumbnail = file;
+                        }
+                    }
+                    else if (cropToSquare && image.Width == image.Height && image.Width > maxSquareSize)
                     {
                         maxSquareSize = image.Width;
                         selectedThumbnail = file;
                     }
-                    else if (size > maxSize && maxSquareSize == 0)
+                    else if (size > maxSize && maxSquareSize == 0 && maxLandscapeArea == 0)
                     {
                         maxSize = size;
                         selectedThumbnail = file;
@@ -395,17 +410,33 @@ public class DownloadService
             if (selectedThumbnail == null)
                 return null;
 
-            // Now make sure the selected thumbnail is square: crop the center if it's not
+            // Keep YouTube Music square cropping unchanged. For regular YouTube,
+            // fit the full thumbnail into a black square without cropping.
             using var img = SixLabors.ImageSharp.Image.Load(selectedThumbnail);
             if (img.Width != img.Height)
             {
                 var squareSize = Math.Min(img.Width, img.Height);
-                var cropX = (img.Width - squareSize) / 2;
-                var cropY = (img.Height - squareSize) / 2;
-                img.Mutate(x => x.Crop(new Rectangle(cropX, cropY, squareSize, squareSize)));
-                var squareThumbnailPath = Path.Combine(_tempFolder, $"thumb_{jobId}_square.jpg");
+                if (cropToSquare)
+                {
+                    var cropX = (img.Width - squareSize) / 2;
+                    var cropY = (img.Height - squareSize) / 2;
+                    img.Mutate(x => x.Crop(new Rectangle(cropX, cropY, squareSize, squareSize)));
+                }
+                else
+                {
+                    squareSize = Math.Max(img.Width, img.Height);
+                    img.Mutate(x => x.Resize(new ResizeOptions
+                    {
+                        Size = new Size(squareSize, squareSize),
+                        Mode = ResizeMode.Pad,
+                        PadColor = Color.Black
+                    }));
+                }
+
+                var suffix = cropToSquare ? "square" : "padded";
+                var squareThumbnailPath = Path.Combine(_tempFolder, $"thumb_{jobId}_{suffix}.jpg");
                 await img.SaveAsJpegAsync(squareThumbnailPath, cancellationToken);
-                Log.Information("Cropped thumbnail to square: {File}", squareThumbnailPath);
+                Log.Information("Prepared square thumbnail ({Layout}): {File}", suffix, squareThumbnailPath);
                 return squareThumbnailPath;
             }
 
@@ -418,20 +449,10 @@ public class DownloadService
         }
     }
 
-    private int RunFfmpegEmbedThumbnail(string inputPath, string thumbnailPath, string outputPath, DownloadMode mode, CancellationToken cancellationToken)
+    private int RunFfmpegEmbedAudioCover(string inputPath, string thumbnailPath, string outputPath, CancellationToken cancellationToken)
     {
         var args = new List<string> { "-y", "-i", inputPath, "-i", thumbnailPath };
-
-        if (mode == DownloadMode.Audio)
-        {
-            // For audio: map thumbnail as cover art
-            args.AddRange(new[] { "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:0", "attached_pic", outputPath });
-        }
-        else
-        {
-            // For video: just copy streams (video already has thumbnail, but we can replace it
-            args.AddRange(new[] { "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:1", "attached_pic", outputPath });
-        }
+        args.AddRange(new[] { "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:0", "attached_pic", outputPath });
 
         using var process = new Process
         {
@@ -730,6 +751,7 @@ public class DownloadService
 
         var qualityArg = mode == DownloadMode.Audio ? GetAudioQualityArg(quality) : GetVideoQualityArg(quality);
         var extension = mode == DownloadMode.Audio ? GetAudioExtension(quality) : ".mp4";
+        var cropAudioThumbnailToSquare = mode == DownloadMode.Audio && IsYouTubeMusicUrl(playlistUrl);
 
         var failedTracks = new List<(int index, string url, string title)>();
 
@@ -758,7 +780,7 @@ public class DownloadService
                 progress.Report(overallProgress);
             });
 
-            var success = await DownloadPlaylistTrack(mode, quality, qualityArg, extension, trackUrl, trackTitle, trackNumber, playlistFolder, trackProgress, onSpeedEta, ct);
+            var success = await DownloadPlaylistTrack(mode, quality, qualityArg, extension, trackUrl, trackTitle, trackNumber, playlistFolder, cropAudioThumbnailToSquare, trackProgress, onSpeedEta, ct);
             if (!success)
                 failedTracks.Add((i, trackUrl, trackTitle));
         }
@@ -786,7 +808,7 @@ public class DownloadService
                     progress.Report(overallProgress);
                 });
 
-                var success = await DownloadPlaylistTrack(mode, quality, qualityArg, extension, trackUrl, trackTitle, trackNumber, playlistFolder, trackProgress, onSpeedEta, ct);
+                var success = await DownloadPlaylistTrack(mode, quality, qualityArg, extension, trackUrl, trackTitle, trackNumber, playlistFolder, cropAudioThumbnailToSquare, trackProgress, onSpeedEta, ct);
                 if (!success)
                     permanentlyFailedTracks.Add((index, trackUrl, trackTitle));
             }
@@ -802,6 +824,7 @@ public class DownloadService
     private async Task<bool> DownloadPlaylistTrack(
         DownloadMode mode, string quality, string qualityArg, string extension,
         string trackUrl, string trackTitle, string trackNumber, string playlistFolder,
+        bool cropAudioThumbnailToSquare,
         IProgress<double> progress, Action<string, string>? onSpeedEta, CancellationToken ct)
     {
         var jobId = Guid.NewGuid().ToString("N");
@@ -831,11 +854,11 @@ public class DownloadService
 
             if (mode == DownloadMode.Audio)
             {
-                var thumbnailPath = await DownloadThumbnailAsync(trackUrl, jobId, trackCts.Token);
+                var thumbnailPath = await DownloadThumbnailAsync(trackUrl, jobId, cropAudioThumbnailToSquare, trackCts.Token);
                 if (thumbnailPath != null)
                 {
                     var withThumbPath = Path.Combine(_tempFolder, $"with_thumb_{jobId}{extension}");
-                    var thumbExit = await Task.Run(() => RunFfmpegEmbedThumbnail(downloadedFile, thumbnailPath, withThumbPath, mode, trackCts.Token), trackCts.Token);
+                    var thumbExit = await Task.Run(() => RunFfmpegEmbedAudioCover(downloadedFile, thumbnailPath, withThumbPath, trackCts.Token), trackCts.Token);
                     if (thumbExit == 0)
                     {
                         File.Delete(downloadedFile);
