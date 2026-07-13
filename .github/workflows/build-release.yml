@@ -42,7 +42,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $toolsDirectory = Join-Path $PWD "BaldGrabber/Tools"
-          $downloadDirectory = Join-Path $RUNNER_TEMP "baldgrabber-tools"
+          $downloadDirectory = Join-Path $env:RUNNER_TEMP "baldgrabber-tools"
           New-Item -ItemType Directory -Path $toolsDirectory, $downloadDirectory -Force | Out-Null
 
           $ytDlpPath = Join-Path $toolsDirectory "yt-dlp.exe"
