@@ -130,7 +130,7 @@ jobs:
 
           New-Item -ItemType Directory -Path $portableApp, (Join-Path $portableRoot "Data"), $releaseAssets -Force | Out-Null
           Copy-Item -Path (Join-Path $publishDirectory "*") -Destination $portableApp -Recurse
-          Copy-Item -LiteralPath ".github/release/BaldGrabberPortable.cmd" -Destination $portableRoot
+          Copy-Item -LiteralPath ".github/packaging/BaldGrabberPortable.cmd" -Destination $portableRoot
 
           $portableArchive = Join-Path $releaseAssets "BaldGrabber_Portable_$version.zip"
           Compress-Archive -Path (Join-Path $portableRoot "*") -DestinationPath $portableArchive -CompressionLevel Optimal
