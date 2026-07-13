@@ -1,0 +1,218 @@
+name: Build and release
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  PROJECT_PATH: BaldGrabber/BaldGrabber.csproj
+  RUNTIME_ID: win-x64
+  YTDLP_URL: https://github.com/yt-dlp/yt-dlp/releases/download/2026.07.04/yt-dlp.exe
+  YTDLP_SHA256: 52FE3C26DCF71FBDC85B528589020BB0B8E383155CFA81B64DD447BBE35E24B8
+  FFMPEG_URL: https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-06-30-13-34/ffmpeg-N-125365-g9a01c1cb6a-win64-gpl.zip
+  FFMPEG_SHA256: 52C0383C460F0EC1039088F1591921FB82E3B870B32AAB8FAF2FF1E5AE14BF9D
+
+jobs:
+  build:
+    name: Build Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore pinned media tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $toolsDirectory = Join-Path $PWD "BaldGrabber/Tools"
+          $downloadDirectory = Join-Path $RUNNER_TEMP "baldgrabber-tools"
+          New-Item -ItemType Directory -Path $toolsDirectory, $downloadDirectory -Force | Out-Null
+
+          $ytDlpPath = Join-Path $toolsDirectory "yt-dlp.exe"
+          Invoke-WebRequest -Uri $env:YTDLP_URL -OutFile $ytDlpPath
+          $ytDlpHash = (Get-FileHash $ytDlpPath -Algorithm SHA256).Hash
+          if ($ytDlpHash -ne $env:YTDLP_SHA256) {
+            throw "yt-dlp SHA-256 mismatch: $ytDlpHash"
+          }
+
+          $ffmpegArchive = Join-Path $downloadDirectory "ffmpeg.zip"
+          $ffmpegExtracted = Join-Path $downloadDirectory "ffmpeg"
+          Invoke-WebRequest -Uri $env:FFMPEG_URL -OutFile $ffmpegArchive
+          $ffmpegHash = (Get-FileHash $ffmpegArchive -Algorithm SHA256).Hash
+          if ($ffmpegHash -ne $env:FFMPEG_SHA256) {
+            throw "ffmpeg archive SHA-256 mismatch: $ffmpegHash"
+          }
+
+          Expand-Archive -LiteralPath $ffmpegArchive -DestinationPath $ffmpegExtracted
+          $ffmpegFiles = @(Get-ChildItem $ffmpegExtracted -Recurse -Filter "ffmpeg.exe" -File)
+          if ($ffmpegFiles.Count -ne 1) {
+            throw "Expected one ffmpeg.exe, found $($ffmpegFiles.Count)"
+          }
+          Copy-Item -LiteralPath $ffmpegFiles[0].FullName -Destination (Join-Path $toolsDirectory "ffmpeg.exe")
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.PROJECT_PATH }} -r ${{ env.RUNTIME_ID }}
+
+      - name: Build Release
+        run: dotnet build ${{ env.PROJECT_PATH }} -c Release -r ${{ env.RUNTIME_ID }} -p:Platform=x64 --no-restore
+
+      - name: Validate tag version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tagVersion = $env:GITHUB_REF_NAME -replace '^v', ''
+          [xml]$project = Get-Content $env:PROJECT_PATH
+          $projectVersion = @($project.Project.PropertyGroup | Where-Object Version | ForEach-Object Version)[0]
+          $installerText = Get-Content "BaldGrabber_Installer.iss" -Raw
+          $installerVersion = [regex]::Match($installerText, '(?m)^AppVersion=(.+)$').Groups[1].Value.Trim()
+
+          if ($projectVersion -ne $tagVersion) {
+            throw "Tag version $tagVersion does not match project version $projectVersion"
+          }
+          if ($installerVersion -ne $tagVersion) {
+            throw "Tag version $tagVersion does not match installer version $installerVersion"
+          }
+
+      - name: Publish self-contained application
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $publishDirectory = Join-Path $PWD "artifacts/publish"
+          dotnet publish $env:PROJECT_PATH -c Release -r $env:RUNTIME_ID -p:Platform=x64 --no-restore -o $publishDirectory
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          Get-ChildItem $publishDirectory -Recurse -Filter "*.pdb" -File | Remove-Item -Force
+          $requiredFiles = @(
+            "BaldGrabber.exe",
+            "BaldGrabber.dll",
+            "BaldGrabber.pri",
+            "Tools/yt-dlp.exe",
+            "Tools/ffmpeg.exe",
+            "Assets/AppIcon.ico"
+          )
+          foreach ($relativePath in $requiredFiles) {
+            if (-not (Test-Path (Join-Path $publishDirectory $relativePath))) {
+              throw "Required release file is missing: $relativePath"
+            }
+          }
+
+      - name: Package portable version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          $publishDirectory = Join-Path $PWD "artifacts/publish"
+          $portableRoot = Join-Path $PWD "artifacts/portable/BaldGrabber_Portable"
+          $portableApp = Join-Path $portableRoot "App/BaldGrabber"
+          $releaseAssets = Join-Path $PWD "artifacts/release-assets"
+
+          New-Item -ItemType Directory -Path $portableApp, (Join-Path $portableRoot "Data"), $releaseAssets -Force | Out-Null
+          Copy-Item -Path (Join-Path $publishDirectory "*") -Destination $portableApp -Recurse
+          Copy-Item -LiteralPath ".github/release/BaldGrabberPortable.cmd" -Destination $portableRoot
+
+          $portableArchive = Join-Path $releaseAssets "BaldGrabber_Portable_$version.zip"
+          Compress-Archive -Path (Join-Path $portableRoot "*") -DestinationPath $portableArchive -CompressionLevel Optimal
+
+      - name: Install Inno Setup
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: choco install innosetup --no-progress --yes
+
+      - name: Build installer and checksums
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $publishDirectory = Join-Path $PWD "artifacts/publish"
+          $installerInput = Join-Path $PWD "BaldGrabber_Release"
+          $releaseAssets = Join-Path $PWD "artifacts/release-assets"
+
+          New-Item -ItemType Directory -Path $installerInput -Force | Out-Null
+          Copy-Item -Path (Join-Path $publishDirectory "*") -Destination $installerInput -Recurse
+
+          $iscc = (Get-Command "ISCC.exe" -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            $isccCandidates = @(
+              "C:/Program Files (x86)/Inno Setup 6/ISCC.exe",
+              "C:/Program Files/Inno Setup 6/ISCC.exe",
+              "C:/ProgramData/chocolatey/bin/ISCC.exe"
+            ) | Where-Object { Test-Path -LiteralPath $_ }
+            if ($isccCandidates.Count -ne 1) {
+              throw "Unable to locate a unique ISCC.exe"
+            }
+            $iscc = $isccCandidates[0]
+          }
+
+          & $iscc "BaldGrabber_Installer.iss"
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          Copy-Item -LiteralPath "Output/BaldGrabber_Installer.exe" -Destination $releaseAssets
+          $files = @(Get-ChildItem $releaseAssets -File | Sort-Object Name)
+          $checksums = $files | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          }
+          Set-Content -LiteralPath (Join-Path $releaseAssets "SHA256SUMS.txt") -Value $checksums -Encoding utf8
+
+      - name: Upload release artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: BaldGrabber-${{ github.ref_name }}
+          path: artifacts/release-assets/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: BaldGrabber-${{ github.ref_name }}
+          path: release-assets
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" release-assets/* \
+              --verify-tag \
+              --generate-notes \
+              --title "BaldGrabber ${GITHUB_REF_NAME#v}" \
+              --repo "$GITHUB_REPOSITORY"
+          fi
