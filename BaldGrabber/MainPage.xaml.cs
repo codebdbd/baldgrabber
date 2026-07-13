@@ -4,12 +4,17 @@ using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 using BaldGrabber.Models;
 using BaldGrabber.ViewModels;
+using Serilog;
+using System.Runtime.InteropServices;
 
 namespace BaldGrabber;
 
 public sealed partial class MainPage : Page
 {
+    private const uint CfUnicodeText = 13;
     private readonly ViewModels.Localization _loc;
+    private readonly DispatcherTimer _clipboardTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private uint _lastClipboardSequenceNumber = uint.MaxValue;
 
     public MainPage()
     {
@@ -22,6 +27,7 @@ public sealed partial class MainPage : Page
         SubtitleText.Text = _loc.AppSubtitle;
         UrlLabel.Text = _loc.UrlLabel;
         UrlTextBox.PlaceholderText = _loc.UrlPlaceholder;
+        ToolTipService.SetToolTip(PasteUrlButton, _loc.PasteUrlToolTip);
         FolderLabel.Text = _loc.FolderLabel;
         BrowseButtonText.Text = _loc.BrowseButton;
         QualityLabel.Text = _loc.QualityLabel;
@@ -31,6 +37,10 @@ public sealed partial class MainPage : Page
         OpenFolderButtonText.Text = _loc.OpenFolderButton;
         AudioTabText.Text = _loc.AudioTab;
         VideoTabText.Text = _loc.VideoTab;
+
+        Loaded += MainPage_Loaded;
+        Unloaded += MainPage_Unloaded;
+        _clipboardTimer.Tick += ClipboardTimer_Tick;
 
         ApplyModeStyle(vm.SelectedMode);
 
@@ -42,12 +52,14 @@ public sealed partial class MainPage : Page
                 {
                     StatusPulseStoryboard.Begin();
                     SetOtherTabEnabled(vm.SelectedMode, false);
+                    UpdateCancelButtonStyle(true);
                 }
                 else
                 {
                     StatusPulseStoryboard.Stop();
                     StatusText.Opacity = 1;
                     SetOtherTabEnabled(vm.SelectedMode, true);
+                    UpdateCancelButtonStyle(false);
                 }
             }
             else if (e.PropertyName == nameof(vm.IsCheckingFormats))
@@ -68,9 +80,45 @@ public sealed partial class MainPage : Page
             {
                 UpdateFragmentButtonStyle(vm);
             }
+            else if (e.PropertyName == nameof(vm.DownloadedFilePath))
+            {
+                UpdateOpenFolderButtonStyle(!string.IsNullOrWhiteSpace(vm.DownloadedFilePath));
+            }
         };
 
         UpdateFragmentButtonStyle(vm);
+        UpdateCancelButtonStyle(vm.IsDownloading);
+        UpdateOpenFolderButtonStyle(!string.IsNullOrWhiteSpace(vm.DownloadedFilePath));
+    }
+
+    private void UpdateCancelButtonStyle(bool isActive)
+    {
+        CancelDownloadButton.Background = new SolidColorBrush(isActive
+            ? Color.FromArgb(255, 71, 45, 53)
+            : Color.FromArgb(255, 42, 47, 66));
+
+        CancelDownloadButtonIcon.Foreground = new SolidColorBrush(isActive
+            ? Color.FromArgb(255, 255, 122, 138)
+            : Color.FromArgb(255, 125, 132, 152));
+
+        CancelDownloadButtonText.Foreground = new SolidColorBrush(isActive
+            ? Color.FromArgb(255, 199, 170, 176)
+            : Color.FromArgb(255, 125, 132, 152));
+    }
+
+    private void UpdateOpenFolderButtonStyle(bool isActive)
+    {
+        OpenFolderButtonInline.Background = new SolidColorBrush(isActive
+            ? Color.FromArgb(255, 38, 61, 58)
+            : Color.FromArgb(255, 42, 47, 66));
+
+        OpenFolderButtonIcon.Foreground = new SolidColorBrush(isActive
+            ? Color.FromArgb(255, 125, 226, 195)
+            : Color.FromArgb(255, 125, 132, 152));
+
+        OpenFolderButtonText.Foreground = new SolidColorBrush(isActive
+            ? Color.FromArgb(255, 169, 201, 192)
+            : Color.FromArgb(255, 125, 132, 152));
     }
 
     // Helper method to find a child of a specific type in the visual tree
@@ -216,6 +264,115 @@ public sealed partial class MainPage : Page
         if (DataContext is ViewModels.MainViewModel vm)
             vm.ResetState();
     }
+
+    private void PasteUrlButton_Click(object sender, RoutedEventArgs e)
+    {
+        var text = GetValidClipboardUrl();
+        if (text == null)
+        {
+            if (DataContext is ViewModels.MainViewModel vm)
+                vm.Status = _loc.StatusClipboardEmpty;
+            return;
+        }
+
+        UrlTextBox.Text = text;
+        UrlTextBox.Focus(FocusState.Programmatic);
+        UrlTextBox.Select(text.Length, 0);
+    }
+
+    private void MainPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        UpdatePasteButtonState();
+        _clipboardTimer.Start();
+    }
+
+    private void MainPage_Unloaded(object sender, RoutedEventArgs e)
+    {
+        _clipboardTimer.Stop();
+        if (DataContext is MainViewModel vm)
+            vm.Shutdown();
+    }
+
+    private void ClipboardTimer_Tick(object? sender, object e)
+    {
+        var sequenceNumber = GetClipboardSequenceNumber();
+        if (sequenceNumber == _lastClipboardSequenceNumber)
+            return;
+
+        _lastClipboardSequenceNumber = sequenceNumber;
+        UpdatePasteButtonState();
+    }
+
+    private void UpdatePasteButtonState()
+    {
+        try
+        {
+            var isAvailable = GetValidClipboardUrl() != null;
+            PasteUrlButton.IsEnabled = isAvailable;
+            ToolTipService.SetToolTip(PasteUrlButton,
+                isAvailable ? _loc.PasteUrlToolTip : _loc.PasteUrlUnavailableToolTip);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Ошибка обновления состояния кнопки вставки");
+            PasteUrlButton.IsEnabled = false;
+        }
+    }
+
+    private string? GetValidClipboardUrl()
+    {
+        var text = GetClipboardText()?.Trim();
+        return text != null && Services.DownloadService.IsValidYouTubeUrl(text) ? text : null;
+    }
+
+    private static string? GetClipboardText()
+    {
+        if (!IsClipboardFormatAvailable(CfUnicodeText) || !OpenClipboard(IntPtr.Zero))
+            return null;
+
+        IntPtr textHandle = IntPtr.Zero;
+        IntPtr textPointer = IntPtr.Zero;
+        try
+        {
+            textHandle = GetClipboardData(CfUnicodeText);
+            if (textHandle == IntPtr.Zero)
+                return null;
+
+            textPointer = GlobalLock(textHandle);
+            return textPointer == IntPtr.Zero ? null : Marshal.PtrToStringUni(textPointer);
+        }
+        finally
+        {
+            if (textPointer != IntPtr.Zero)
+                GlobalUnlock(textHandle);
+            CloseClipboard();
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetClipboardSequenceNumber();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsClipboardFormatAvailable(uint format);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool OpenClipboard(IntPtr newOwner);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetClipboardData(uint format);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CloseClipboard();
+
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GlobalLock(IntPtr memory);
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalUnlock(IntPtr memory);
 
     private void FolderTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
@@ -413,9 +570,6 @@ public sealed partial class MainPage : Page
 
     private void UpdateFragmentButtonStyle(MainViewModel vm)
     {
-        var isAudio = vm.SelectedMode == DownloadMode.Audio;
-        var activeColor = isAudio ? Color.FromArgb(255, 139, 92, 246) : Color.FromArgb(255, 6, 182, 212);
-        var inactiveColor = Color.FromArgb(255, 195, 198, 212);
-        FragmentButtonIcon.Foreground = new SolidColorBrush(vm.HasFragment ? activeColor : inactiveColor);
+        FragmentButtonIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 120, 175, 255));
     }
 }

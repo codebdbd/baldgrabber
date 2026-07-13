@@ -624,6 +624,7 @@ public class DownloadService
 
             Log.Information("GetAvailableFormatsAsync result: {Result}", string.Join(", ", result));
         }
+        catch (OperationCanceledException) { throw; }
         catch (Exception ex) { Log.Error(ex, "Failed to get available formats"); }
         return result;
     }

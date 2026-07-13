@@ -82,7 +82,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                 }
                 else
                 {
-                    _formatCancellationTokenSource?.Cancel();
+                    CancelFormatCheck();
                     IsCheckingFormats = false;
                     FormatsStatus = "";
                 }
@@ -264,12 +264,12 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     private readonly List<VideoQualityOption> _videoQualities = new()
     {
-        new() { Id = "2160p", Name = "MP4 2160p 4K", Description = "Ultra HD" },
-        new() { Id = "1440p", Name = "MP4 1440p", Description = "Quad HD" },
-        new() { Id = "1080p", Name = "MP4 1080p", Description = "Отличное качество" },
-        new() { Id = "720p", Name = "MP4 720p", Description = "Хорошее качество" },
-        new() { Id = "480p", Name = "MP4 480p", Description = "Стандартное качество" },
-        new() { Id = "360p", Name = "MP4 360p", Description = "Маленький размер файла" },
+        new() { Id = "2160p", Name = "MP4 2160p 4K", Description = "Максимальная детализация" },
+        new() { Id = "1440p", Name = "MP4 1440p QHD", Description = "Очень высокое качество" },
+        new() { Id = "1080p", Name = "MP4 1080p Full HD", Description = "Высокое качество" },
+        new() { Id = "720p", Name = "MP4 720p HD", Description = "Хорошее качество" },
+        new() { Id = "480p", Name = "MP4 480p SD", Description = "Стандартное качество" },
+        new() { Id = "360p", Name = "MP4 360p", Description = "Небольшой размер файла" },
         new() { Id = "240p", Name = "MP4 240p", Description = "Минимальный размер файла" },
     };
 
@@ -316,7 +316,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     private void ResetVideoQualitySelection()
     {
         HasCheckedVideoFormats = false;
-        VideoPlaceholderQuality.Name = _loc.VideoQualityLabel;
+        VideoPlaceholderQuality.Name = _loc.VideoQualityPlaceholder;
         VideoQualities = new ObservableCollection<VideoQualityOption> { VideoPlaceholderQuality };
         SelectedVideoQuality = VideoPlaceholderQuality;
     }
@@ -370,8 +370,7 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     private async Task FetchAvailableFormatsAsync()
     {
-        _formatCancellationTokenSource?.Cancel();
-        _formatCancellationTokenSource?.Dispose();
+        CancelFormatCheck();
 
         if (string.IsNullOrWhiteSpace(Url) || !DownloadService.IsValidYouTubeUrl(Url))
         {
@@ -388,10 +387,12 @@ public partial class MainViewModel : INotifyPropertyChanged
             return;
         }
 
+        var cancellationTokenSource = new CancellationTokenSource();
+        _formatCancellationTokenSource = cancellationTokenSource;
+
         try
         {
-            _formatCancellationTokenSource = new CancellationTokenSource();
-            var ct = _formatCancellationTokenSource.Token;
+            var ct = cancellationTokenSource.Token;
 
             HasCheckedVideoFormats = false;
             ShowCheckingFormatsQuality();
@@ -401,7 +402,8 @@ public partial class MainViewModel : INotifyPropertyChanged
 
             var formats = await _downloadService.GetAvailableFormatsAsync(Url, DownloadMode.Video, ct);
 
-            if (SelectedMode != DownloadMode.Video)
+            if (!ReferenceEquals(Volatile.Read(ref _formatCancellationTokenSource), cancellationTokenSource) ||
+                SelectedMode != DownloadMode.Video)
                 return;
 
             SetCheckedVideoQualities(formats);
@@ -416,8 +418,20 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
         finally
         {
-            IsCheckingFormats = false;
+            var ownedCurrentCheck = ReferenceEquals(
+                Interlocked.CompareExchange(ref _formatCancellationTokenSource, null, cancellationTokenSource),
+                cancellationTokenSource);
+            cancellationTokenSource.Dispose();
+            if (ownedCurrentCheck)
+                IsCheckingFormats = false;
         }
+    }
+
+    private void CancelFormatCheck()
+    {
+        var cancellationTokenSource = Interlocked.Exchange(ref _formatCancellationTokenSource, null);
+        try { cancellationTokenSource?.Cancel(); }
+        catch (ObjectDisposedException) { }
     }
 
     private void UpdateCanDownload()
@@ -607,6 +621,13 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     private void CancelDownload()
     {
+        try { _cancellationTokenSource?.Cancel(); }
+        catch (ObjectDisposedException) { }
+    }
+
+    public void Shutdown()
+    {
+        CancelFormatCheck();
         _cancellationTokenSource?.Cancel();
     }
 
@@ -637,6 +658,9 @@ public class Localization
     public string AppSubtitle { get; private set; } = "";
     public string UrlLabel { get; private set; } = "";
     public string UrlPlaceholder { get; private set; } = "";
+    public string PasteUrlToolTip { get; private set; } = "";
+    public string PasteUrlUnavailableToolTip { get; private set; } = "";
+    public string StatusClipboardEmpty { get; private set; } = "";
     public string FolderLabel { get; private set; } = "";
     public string BrowseButton { get; private set; } = "";
     public string QualityLabel { get; private set; } = "";
@@ -675,6 +699,7 @@ public class Localization
     public string Quality128Desc { get; private set; } = "";
     public string Quality96Desc { get; private set; } = "";
     public string VideoQualityLabel { get; private set; } = "";
+    public string VideoQualityPlaceholder { get; private set; } = "";
     public string VideoDownloadButton { get; private set; } = "";
     public string AudioTab { get; private set; } = "";
     public string VideoTab { get; private set; } = "";
@@ -708,7 +733,10 @@ public class Localization
         AppTitle = "BalDGrabber",
         AppSubtitle = "Paste YouTube link and grab it!",
         UrlLabel = "YouTube Link",
-        UrlPlaceholder = "Paste YouTube video link",
+        UrlPlaceholder = "Paste a YouTube link",
+        PasteUrlToolTip = "Paste from clipboard",
+        PasteUrlUnavailableToolTip = "Clipboard contains no YouTube link",
+        StatusClipboardEmpty = "Clipboard contains no YouTube link",
         FolderLabel = "Save folder",
         BrowseButton = "Select",
         QualityLabel = "Audio quality",
@@ -746,6 +774,7 @@ public class Localization
         Quality128Desc = "Small file size",
         Quality96Desc = "Very small file size",
         VideoQualityLabel = "Video quality",
+        VideoQualityPlaceholder = "Select video quality",
         VideoDownloadButton = "Download video",
         EmbedThumbnailLabel = "Embed thumbnail",
         AudioTab = "Audio",
@@ -770,7 +799,10 @@ public class Localization
         AppTitle = "BalDGrabber",
         AppSubtitle = "Вставь ссылку YouTube и качай!",
         UrlLabel = "Ссылка на YouTube",
-        UrlPlaceholder = "Вставьте ссылку на YouTube видео",
+        UrlPlaceholder = "Вставьте ссылку YouTube",
+        PasteUrlToolTip = "Вставить из буфера обмена",
+        PasteUrlUnavailableToolTip = "В буфере нет ссылки YouTube",
+        StatusClipboardEmpty = "В буфере нет ссылки YouTube",
         FolderLabel = "Папка для сохранения",
         BrowseButton = "Выбрать",
         QualityLabel = "Качество аудио",
@@ -808,6 +840,7 @@ public class Localization
         Quality128Desc = "Маленький размер файла",
         Quality96Desc = "Очень маленький размер файла",
         VideoQualityLabel = "Качество видео",
+        VideoQualityPlaceholder = "Выберите качество видео",
         VideoDownloadButton = "Скачать видео",
         EmbedThumbnailLabel = "Встроить обложку",
         AudioTab = "Аудио",
@@ -832,7 +865,10 @@ public class Localization
         AppTitle = "BalDGrabber",
         AppSubtitle = "Встав посилання YouTube і качай!",
         UrlLabel = "Посилання на YouTube",
-        UrlPlaceholder = "Вставте посилання на YouTube відео",
+        UrlPlaceholder = "Вставте посилання YouTube",
+        PasteUrlToolTip = "Вставити з буфера обміну",
+        PasteUrlUnavailableToolTip = "У буфері немає посилання YouTube",
+        StatusClipboardEmpty = "У буфері немає посилання YouTube",
         FolderLabel = "Папка для збереження",
         BrowseButton = "Обрати",
         QualityLabel = "Якість аудіо",
@@ -870,6 +906,7 @@ public class Localization
         Quality128Desc = "Малий розмір файлу",
         Quality96Desc = "Дуже малий розмір файлу",
         VideoQualityLabel = "Якість відео",
+        VideoQualityPlaceholder = "Оберіть якість відео",
         VideoDownloadButton = "Завантажити відео",
         EmbedThumbnailLabel = "Вбудувати обкладинку",
         AudioTab = "Аудіо",

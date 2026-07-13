@@ -18,7 +18,7 @@
         <conv:SelectedStateConverter x:Key="SelectedStateConverter"/>
         <conv:EmptyToCollapsedConverter x:Key="EmptyToCollapsedConverter"/>
         <conv:InvertBoolToVisibilityConverter x:Key="InvertBoolToVisibilityConverter"/>
-        <conv:IdToForegroundConverter x:Key="IdToForegroundConverter" NormalBrush="{StaticResource WhiteBrush}" PlaceholderBrush="{StaticResource SecondaryBrush}"/>
+        <conv:IdToForegroundConverter x:Key="IdToForegroundConverter" NormalBrush="#CDD3DF" PlaceholderBrush="{StaticResource SecondaryBrush}"/>
         <SolidColorBrush x:Key="BackgroundBrush" Color="#121826"/>
         <SolidColorBrush x:Key="CardBrush" Color="#1F2434"/>
         <SolidColorBrush x:Key="AccentBrush" Color="#8B5CF6"/>
@@ -34,9 +34,9 @@
         <SolidColorBrush x:Key="TabActiveVideoBrush" Color="#06B6D4"/>
 
         <Style x:Key="DarkComboBox" TargetType="ComboBox">
-            <Setter Property="Background" Value="#181D2C"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#3B4256"/>
+            <Setter Property="Background" Value="#121826"/>
+            <Setter Property="Foreground" Value="#CDD3DF"/>
+            <Setter Property="BorderBrush" Value="#252B3A"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Height" Value="42"/>
@@ -175,7 +175,7 @@
                 <TextBlock
                     x:Name="SubtitleText"
                     FontSize="14"
-                    Foreground="{StaticResource SecondaryBrush}"
+                    Foreground="#8F97AA"
                     Margin="0,2,0,0"/>
             </StackPanel>
         </Grid>
@@ -271,15 +271,21 @@
                         x:Name="UrlLabel"
                         FontSize="14"
                         FontWeight="SemiBold"
-                        Foreground="{StaticResource WhiteBrush}"
+                        Foreground="#AEB5C5"
                         Margin="0,0,0,6"/>
-                    <Border
-                        x:Name="UrlInputBorder"
-                        BorderThickness="2"
-                        CornerRadius="8"
-                        Height="44"
-                        Padding="14,0,0,0">
-                        <Grid>
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="44"/>
+                        </Grid.ColumnDefinitions>
+                        <Border
+                            Grid.Column="0"
+                            x:Name="UrlInputBorder"
+                            BorderThickness="2"
+                            CornerRadius="8"
+                            Height="44"
+                            Padding="14,0,0,0">
+                            <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
@@ -290,19 +296,26 @@
                                 TextChanged="UrlTextBox_TextChanged"
                                 PlaceholderText="Paste YouTube video link"
                                 Background="Transparent"
-                                Foreground="{StaticResource WhiteBrush}"
+                                Foreground="#CDD3DF"
                                 PlaceholderForeground="#6B7280"
                                 Padding="0"
                                 FontSize="15">
                                 <TextBox.Template>
                                     <ControlTemplate TargetType="TextBox">
-                                        <Border Background="Transparent">
+                                        <Grid Background="Transparent">
+                                            <TextBlock
+                                                Text="{TemplateBinding PlaceholderText}"
+                                                Foreground="{TemplateBinding PlaceholderForeground}"
+                                                FontSize="{TemplateBinding FontSize}"
+                                                VerticalAlignment="Center"
+                                                IsHitTestVisible="False"
+                                                Visibility="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource EmptyToCollapsedConverter}, ConverterParameter=Invert}"/>
                                             <ScrollViewer
                                                 x:Name="ContentElement"
                                                 VerticalAlignment="Center"
                                                 HorizontalScrollBarVisibility="Disabled"
                                                 VerticalScrollBarVisibility="Disabled"/>
-                                        </Border>
+                                        </Grid>
                                     </ControlTemplate>
                                 </TextBox.Template>
                             </TextBox>
@@ -319,8 +332,29 @@
                                     FontSize="14"
                                     Foreground="{StaticResource SecondaryBrush}"/>
                             </Button>
-                        </Grid>
-                    </Border>
+                            </Grid>
+                        </Border>
+                        <Button
+                            Grid.Column="1"
+                            x:Name="PasteUrlButton"
+                            Click="PasteUrlButton_Click"
+                            IsEnabled="False"
+                            UseSystemFocusVisuals="False"
+                            Background="#2A2F42"
+                            Foreground="{StaticResource WhiteBrush}"
+                            BorderThickness="0"
+                            CornerRadius="8"
+                            Height="40"
+                            Padding="0"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Center">
+                            <FontIcon
+                                FontFamily="{ThemeResource SymbolThemeFontFamily}"
+                                Glyph="&#xE77F;"
+                                FontSize="18"
+                                Foreground="{StaticResource CoffeeBrush}"/>
+                        </Button>
+                    </Grid>
                 </StackPanel>
 
                 <!-- Quality Section (Row 1) -->
@@ -329,7 +363,7 @@
                         x:Name="QualityLabel"
                         FontSize="14"
                         FontWeight="SemiBold"
-                        Foreground="{StaticResource WhiteBrush}"
+                        Foreground="#AEB5C5"
                         Margin="0,0,0,6"/>
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
@@ -341,9 +375,20 @@
                             Grid.Column="0"
                             Style="{StaticResource DarkComboBox}"
                             ItemsSource="{Binding AudioQualities}"
-                            DisplayMemberPath="Name"
                             SelectedItem="{Binding SelectedAudioQuality, Mode=TwoWay}"
-                            HorizontalAlignment="Stretch"/>
+                            HorizontalAlignment="Stretch">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:AudioQuality">
+                                    <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontSize="15" Foreground="#CDD3DF" VerticalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Visibility="{Binding Description, Converter={StaticResource EmptyToCollapsedConverter}}">
+                                            <TextBlock Text="—" FontSize="12" Foreground="#8B93A7" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#8B93A7" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
                         <ComboBox
                             x:Name="VideoQualityComboBox"
                             Grid.Column="0"
@@ -355,12 +400,16 @@
                             Loaded="VideoQualityComboBox_Loaded">
                             <ComboBox.Resources>
                                 <DataTemplate x:Key="VideoQualityItemTemplate" x:DataType="models:VideoQualityOption">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="Medium">
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="Medium" VerticalAlignment="Center">
                                             <TextBlock.Foreground>
                                                 <Binding Path="Id" Converter="{StaticResource IdToForegroundConverter}"/>
                                             </TextBlock.Foreground>
                                         </TextBlock>
+                                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Visibility="{Binding Description, Converter={StaticResource EmptyToCollapsedConverter}}">
+                                            <TextBlock Text="—" FontSize="12" Foreground="#8B93A7" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#8B93A7" VerticalAlignment="Center"/>
+                                        </StackPanel>
                                         <TextBlock Text="недоступно" Foreground="#EF4444" FontSize="11" VerticalAlignment="Center" Visibility="{Binding IsAvailable, Converter={StaticResource InvertBoolToVisibilityConverter}}"/>
                                     </StackPanel>
                                 </DataTemplate>
@@ -387,7 +436,7 @@
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                 Glyph="&#xE916;"
                                 FontSize="18"
-                                Foreground="{StaticResource SecondaryBrush}"/>
+                                Foreground="#78AFFF"/>
                         </Button>
                     </Grid>
                 </StackPanel>
@@ -398,7 +447,7 @@
                         x:Name="FolderLabel"
                         FontSize="14"
                         FontWeight="SemiBold"
-                        Foreground="{StaticResource WhiteBrush}"
+                        Foreground="#AEB5C5"
                         Margin="0,0,0,6"/>
                     <Grid ColumnSpacing="8">
                         <Grid.ColumnDefinitions>
@@ -411,7 +460,7 @@
                         <Border
                             Grid.Column="0"
                             Background="#181D2C"
-                            BorderBrush="#3B4256"
+                            BorderBrush="#252B3A"
                             BorderThickness="1"
                             CornerRadius="8"
                             Height="42"
@@ -421,7 +470,7 @@
                                 Text="{Binding OutputFolder, Mode=TwoWay}"
                                 TextChanged="FolderTextBox_TextChanged"
                                 Background="Transparent"
-                                Foreground="{StaticResource WhiteBrush}"
+                                Foreground="{ThemeResource ButtonForegroundDisabled}"
                                 FontSize="15"
                                 MinHeight="0"
                                 VerticalAlignment="Center"
@@ -446,22 +495,30 @@
                             x:Name="BrowseButton"
                             Command="{Binding BrowseFolderCommand}"
                             UseSystemFocusVisuals="False"
-                            Background="#2A2F42"
-                            Foreground="{StaticResource WhiteBrush}"
+                            Background="#29364A"
+                            Foreground="#9FC5FF"
                             BorderThickness="0"
                             CornerRadius="8"
                             Height="40"
                             Padding="14,0"
                             HorizontalAlignment="Stretch">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#34445C"/>
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#222D3E"/>
+                                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#9FC5FF"/>
+                                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#9FC5FF"/>
+                            </Button.Resources>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <FontIcon
                                     FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                     Glyph="&#xE838;"
                                     FontSize="16"
+                                    Foreground="#78AFFF"
                                     VerticalAlignment="Center"/>
                                 <TextBlock
                                     x:Name="BrowseButtonText"
                                     FontSize="14"
+                                    Foreground="#AEBFD8"
                                     VerticalAlignment="Center"/>
                             </StackPanel>
                         </Button>
@@ -481,8 +538,15 @@
                             IsEnabled="{Binding DownloadedFilePath, Converter={StaticResource NullToBoolConverter}}"
                             HorizontalAlignment="Stretch"
                             VerticalAlignment="Center">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#2E4A45"/>
+                                <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#20332F"/>
+                                <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#7DE2C3"/>
+                                <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#7DE2C3"/>
+                            </Button.Resources>
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <FontIcon
+                                    x:Name="OpenFolderButtonIcon"
                                     FontFamily="{ThemeResource SymbolThemeFontFamily}"
                                     Glyph="&#xE8A7;"
                                     FontSize="16"
@@ -546,10 +610,15 @@
                         Height="40"
                         Padding="14,0"
                         HorizontalAlignment="Stretch">
+                        <Button.Resources>
+                            <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#583640"/>
+                            <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#39242B"/>
+                        </Button.Resources>
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon
+                                x:Name="CancelDownloadButtonIcon"
                                 FontFamily="{ThemeResource SymbolThemeFontFamily}"
-                                Glyph="&#xE71A;"
+                                Glyph="&#xE733;"
                                 FontSize="16"
                                 VerticalAlignment="Center"/>
                             <TextBlock
@@ -582,7 +651,7 @@
                             <TextBlock
                                 x:Name="SupportAuthorText"
                                 FontSize="14"
-                                Foreground="#E5D0BC"
+                                Foreground="#C8B5A4"
                                 VerticalAlignment="Center"/>
                         </StackPanel>
                     </HyperlinkButton>
@@ -600,7 +669,7 @@
                             Grid.Column="0"
                             Text="{Binding Status}"
                             FontSize="14"
-                            Foreground="{StaticResource WhiteBrush}"/>
+                            Foreground="#8F97AA"/>
                         <TextBlock
                             x:Name="ProgressTextBlock"
                             Grid.Column="1"
