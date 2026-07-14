@@ -199,10 +199,13 @@ public sealed partial class MainPage : Page
     {
         var audioEnabled = vm.IsDownloading
             ? vm.SelectedMode == DownloadMode.Audio
-            : vm.CurrentSource is not (DownloadSource.TikTok or DownloadSource.Facebook or DownloadSource.Instagram);
+            : vm.CurrentSource is not (DownloadSource.TikTok or DownloadSource.Facebook or DownloadSource.Instagram or
+                DownloadSource.Twitter or DownloadSource.Reddit or DownloadSource.Vimeo or DownloadSource.Twitch or
+                DownloadSource.VkVideo);
         var videoEnabled = vm.IsDownloading
             ? vm.SelectedMode == DownloadMode.Video
-            : vm.CurrentSource != DownloadSource.SoundCloud;
+            : vm.CurrentSource is not (DownloadSource.SoundCloud or DownloadSource.Bandcamp or
+                DownloadSource.Mixcloud or DownloadSource.BandLab or DownloadSource.HearThisAt);
 
         SetTabEnabled(AudioTabButton, AudioTabBorder, AudioTabText, audioEnabled,
             vm.SelectedMode == DownloadMode.Audio, vm.IsDownloading);
@@ -420,59 +423,94 @@ public sealed partial class MainPage : Page
         if (DataContext is not MainViewModel vm)
             return;
 
-        var startBox = CreateFragmentTextBox(vm.TimeFrom);
-        var stopBox = CreateFragmentTextBox(vm.TimeTo);
+        var startBox = CreateFragmentTextBox(vm.TimeFrom, _loc.FragmentStartPlaceholder);
+        var stopBox = CreateFragmentTextBox(vm.TimeTo, _loc.FragmentStopPlaceholder);
         var startError = CreateFragmentErrorTextBlock();
         var stopError = CreateFragmentErrorTextBlock();
         var isAudio = vm.SelectedMode == DownloadMode.Audio;
         var activeColor = isAudio ? Color.FromArgb(255, 139, 92, 246) : Color.FromArgb(255, 6, 182, 212);
         var activeBrush = new SolidColorBrush(activeColor);
         var neutralBrush = new SolidColorBrush(Color.FromArgb(255, 59, 66, 86));
+        var neutralHoverBrush = new SolidColorBrush(Color.FromArgb(255, 48, 54, 74));
+        var neutralPressedBrush = new SolidColorBrush(Color.FromArgb(255, 36, 42, 58));
+        var activePressedBrush = new SolidColorBrush(isAudio
+            ? Color.FromArgb(255, 124, 79, 224)
+            : Color.FromArgb(255, 8, 145, 178));
 
         var content = new StackPanel
         {
-            Spacing = 8,
-            Width = 304
+            Spacing = 0,
+            Width = 436
         };
         content.Children.Add(new TextBlock
         {
             Text = _loc.FragmentHintText,
-            Foreground = new SolidColorBrush(Color.FromArgb(255, 195, 198, 212)),
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 174, 181, 197)),
             TextWrapping = TextWrapping.Wrap,
-            FontSize = 13
+            FontSize = 14,
+            Margin = new Thickness(0, 0, 0, 18)
         });
 
-        content.Children.Add(CreateFragmentField(_loc.FragmentStartLabel, startBox, startError));
-        content.Children.Add(CreateFragmentField(_loc.FragmentStopLabel, stopBox, stopError));
+        content.Children.Add(CreateFragmentField(
+            _loc.FragmentStartLabel, startBox, startError, _loc.FragmentStartHint, activeBrush));
+        content.Children.Add(CreateFragmentField(
+            _loc.FragmentStopLabel, stopBox, stopError, _loc.FragmentStopHint, activeBrush));
 
-        content.Children.Add(new TextBlock
+        var titleContent = new StackPanel
         {
-            Text = _loc.FragmentFormatHint,
-            Foreground = new SolidColorBrush(Color.FromArgb(255, 107, 114, 128)),
-            TextWrapping = TextWrapping.Wrap,
-            FontSize = 12,
-            Margin = new Thickness(0, 0, 0, 0)
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        titleContent.Children.Add(new FontIcon
+        {
+            FontFamily = new FontFamily("Segoe Fluent Icons"),
+            Glyph = "\uE916",
+            FontSize = 18,
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 120, 175, 255)),
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        titleContent.Children.Add(new TextBlock
+        {
+            Text = _loc.FragmentDialogTitle,
+            FontSize = 18,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)),
+            VerticalAlignment = VerticalAlignment.Center
         });
 
         var dialog = new ContentDialog
         {
             XamlRoot = XamlRoot,
-            Title = _loc.FragmentDialogTitle,
+            Title = titleContent,
             Content = content,
             Background = new SolidColorBrush(Color.FromArgb(255, 31, 36, 52)),
             Foreground = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)),
-            Padding = new Thickness(24)
+            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 59, 66, 86)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(20),
+            Padding = new Thickness(22)
         };
 
-        var saveButton = CreateFragmentDialogButton(_loc.FragmentSaveButton, activeBrush);
-        var clearButton = CreateFragmentDialogButton(_loc.FragmentClearButton, neutralBrush);
-        var cancelButton = CreateFragmentDialogButton(_loc.FragmentCancelButton, neutralBrush);
+        var whiteBrush = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255));
+        var saveButton = CreateFragmentDialogButton(
+            _loc.FragmentSaveButton, "\uE73E", activeBrush, whiteBrush, whiteBrush,
+            activeBrush, activePressedBrush);
+        var clearButton = CreateFragmentDialogButton(
+            _loc.FragmentClearButton, "\uE777", neutralBrush,
+            new SolidColorBrush(Color.FromArgb(255, 120, 175, 255)),
+            new SolidColorBrush(Color.FromArgb(255, 174, 191, 216)),
+            neutralHoverBrush, neutralPressedBrush);
+        var cancelButton = CreateFragmentDialogButton(
+            _loc.FragmentCancelButton, "\uE711", neutralBrush,
+            new SolidColorBrush(Color.FromArgb(255, 156, 163, 181)),
+            new SolidColorBrush(Color.FromArgb(255, 205, 211, 223)),
+            neutralHoverBrush, neutralPressedBrush);
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 8,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 8, 0, 0)
+            HorizontalAlignment = HorizontalAlignment.Center
         };
         buttons.Children.Add(saveButton);
         buttons.Children.Add(clearButton);
@@ -483,14 +521,22 @@ public sealed partial class MainPage : Page
         {
             startError.Text = "";
             stopError.Text = "";
+            startError.Visibility = Visibility.Collapsed;
+            stopError.Visibility = Visibility.Collapsed;
 
             var isStartValid = IsValidFragmentTime(startBox.Text);
             var isStopValid = IsValidFragmentTime(stopBox.Text);
 
             if (!isStartValid)
+            {
                 startError.Text = _loc.FragmentErrorText;
+                startError.Visibility = Visibility.Visible;
+            }
             if (!isStopValid)
+            {
                 stopError.Text = _loc.FragmentErrorText;
+                stopError.Visibility = Visibility.Visible;
+            }
 
             if (!isStartValid || !isStopValid)
                 return;
@@ -506,41 +552,101 @@ public sealed partial class MainPage : Page
             stopBox.Text = "";
             startError.Text = "";
             stopError.Text = "";
+            startError.Visibility = Visibility.Collapsed;
+            stopError.Visibility = Visibility.Collapsed;
         };
 
         cancelButton.Click += (_, _) => dialog.Hide();
 
-        await dialog.ShowAsync();
+        await dialog.ShowAsync(ContentDialogPlacement.Popup);
     }
 
-    private static StackPanel CreateFragmentField(string label, TextBox textBox, TextBlock errorText)
+    private static StackPanel CreateFragmentField(
+        string label,
+        TextBox textBox,
+        TextBlock errorText,
+        string hint,
+        Brush activeBrush)
     {
-        var panel = new StackPanel { Spacing = 4 };
+        var normalBorderBrush = new SolidColorBrush(Color.FromArgb(255, 37, 43, 58));
+        var placeholder = new TextBlock
+        {
+            Text = textBox.PlaceholderText,
+            Foreground = textBox.PlaceholderForeground,
+            FontSize = 15,
+            VerticalAlignment = VerticalAlignment.Center,
+            IsHitTestVisible = false,
+            Visibility = string.IsNullOrEmpty(textBox.Text) ? Visibility.Visible : Visibility.Collapsed
+        };
+        textBox.PlaceholderText = "";
+        textBox.TextChanged += (_, _) =>
+        {
+            placeholder.Visibility = string.IsNullOrEmpty(textBox.Text)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        };
+        var inputContent = new Grid();
+        inputContent.Children.Add(placeholder);
+        inputContent.Children.Add(textBox);
+        var inputBorder = new Border
+        {
+            Height = 42,
+            Background = new SolidColorBrush(Color.FromArgb(255, 24, 29, 44)),
+            BorderBrush = normalBorderBrush,
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 0, 14, 0),
+            Child = inputContent
+        };
+        textBox.GotFocus += (_, _) =>
+        {
+            inputBorder.BorderBrush = activeBrush;
+            inputBorder.BorderThickness = new Thickness(2);
+        };
+        textBox.LostFocus += (_, _) =>
+        {
+            inputBorder.BorderBrush = normalBorderBrush;
+            inputBorder.BorderThickness = new Thickness(1);
+        };
+
+        var panel = new StackPanel { Spacing = 0, Margin = new Thickness(0, 0, 0, 16) };
         panel.Children.Add(new TextBlock
         {
             Text = label,
-            Foreground = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)),
-            FontSize = 13,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 174, 181, 197)),
+            FontSize = 14,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Margin = new Thickness(0, 0, 0, 6)
         });
-        panel.Children.Add(textBox);
+        panel.Children.Add(inputBorder);
         panel.Children.Add(errorText);
+        panel.Children.Add(new TextBlock
+        {
+            Text = hint,
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 143, 151, 170)),
+            FontSize = 12,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 6, 0, 0)
+        });
         return panel;
     }
 
-    private static TextBox CreateFragmentTextBox(string value)
+    private TextBox CreateFragmentTextBox(string value, string placeholder)
     {
         var textBox = new TextBox
         {
             Text = value,
-            PlaceholderText = "M:SS или HH:MM:SS",
-            Background = new SolidColorBrush(Color.FromArgb(255, 24, 29, 44)),
-            Foreground = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)),
-            PlaceholderForeground = new SolidColorBrush(Color.FromArgb(255, 107, 114, 128)),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 59, 66, 86)),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(10, 6, 10, 6),
-            FontSize = 15
+            PlaceholderText = placeholder,
+            Background = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0)),
+            Foreground = new SolidColorBrush(Color.FromArgb(255, 205, 211, 223)),
+            PlaceholderForeground = new SolidColorBrush(Color.FromArgb(255, 139, 147, 167)),
+            BorderThickness = new Thickness(0),
+            Height = 40,
+            MinHeight = 0,
+            Padding = new Thickness(0),
+            FontSize = 15,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Template = FolderTextBox.Template
         };
         textBox.BeforeTextChanging += (_, args) =>
         {
@@ -553,22 +659,60 @@ public sealed partial class MainPage : Page
     {
         Foreground = new SolidColorBrush(Color.FromArgb(255, 239, 68, 68)),
         FontSize = 12,
-        TextWrapping = TextWrapping.Wrap
+        TextWrapping = TextWrapping.Wrap,
+        Margin = new Thickness(0, 4, 0, 0),
+        Visibility = Visibility.Collapsed
     };
 
-    private static Button CreateFragmentDialogButton(string text, Brush background) => new()
+    private static Button CreateFragmentDialogButton(
+        string text,
+        string glyph,
+        Brush background,
+        Brush iconForeground,
+        Brush textForeground,
+        Brush hoverBackground,
+        Brush pressedBackground)
     {
-        Content = text,
-        Background = background,
-        Foreground = new SolidColorBrush(Color.FromArgb(255, 255, 255, 255)),
-        BorderBrush = new SolidColorBrush(Color.FromArgb(255, 75, 85, 110)),
-        BorderThickness = new Thickness(1),
-        CornerRadius = new CornerRadius(8),
-        MinWidth = 92,
-        MinHeight = 32,
-        Padding = new Thickness(12, 6, 12, 6),
-        FontSize = 14
-    };
+        var content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        content.Children.Add(new FontIcon
+        {
+            FontFamily = new FontFamily("Segoe Fluent Icons"),
+            Glyph = glyph,
+            FontSize = 16,
+            Foreground = iconForeground,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = text,
+            FontSize = 14,
+            Foreground = textForeground,
+            VerticalAlignment = VerticalAlignment.Center
+        });
+
+        var button = new Button
+        {
+            Content = content,
+            Background = background,
+            BorderThickness = new Thickness(0),
+            CornerRadius = new CornerRadius(8),
+            Width = 138,
+            Height = 40,
+            Padding = new Thickness(8, 0, 8, 0),
+            UseSystemFocusVisuals = false,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center
+        };
+        button.Resources["ButtonBackgroundPointerOver"] = hoverBackground;
+        button.Resources["ButtonBackgroundPressed"] = pressedBackground;
+        return button;
+    }
 
     private static bool IsTimeInputCandidate(string value)
     {

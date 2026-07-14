@@ -16,7 +16,16 @@ public enum DownloadSource
     SoundCloud,
     TikTok,
     Facebook,
-    Instagram
+    Instagram,
+    Twitter,
+    Reddit,
+    Vimeo,
+    Twitch,
+    VkVideo,
+    Bandcamp,
+    Mixcloud,
+    BandLab,
+    HearThisAt
 }
 
 public partial class DownloadService
@@ -39,6 +48,51 @@ public partial class DownloadService
     private static readonly HashSet<string> InstagramHosts = new(StringComparer.OrdinalIgnoreCase)
     {
         "instagram.com", "www.instagram.com"
+    };
+
+    private static readonly HashSet<string> TwitterHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "x.com", "www.x.com", "mobile.x.com",
+        "twitter.com", "www.twitter.com", "mobile.twitter.com", "t.co"
+    };
+
+    private static readonly HashSet<string> RedditHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "reddit.com", "www.reddit.com", "old.reddit.com", "new.reddit.com",
+        "redd.it", "v.redd.it"
+    };
+
+    private static readonly HashSet<string> VimeoHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "vimeo.com", "www.vimeo.com", "player.vimeo.com"
+    };
+
+    private static readonly HashSet<string> TwitchHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "twitch.tv", "www.twitch.tv", "go.twitch.tv", "m.twitch.tv",
+        "clips.twitch.tv", "player.twitch.tv"
+    };
+
+    private static readonly HashSet<string> VkHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "vk.com", "www.vk.com", "m.vk.com", "new.vk.com",
+        "vk.ru", "www.vk.ru", "m.vk.ru",
+        "vkvideo.ru", "www.vkvideo.ru"
+    };
+
+    private static readonly HashSet<string> MixcloudHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "mixcloud.com", "www.mixcloud.com", "beta.mixcloud.com", "m.mixcloud.com"
+    };
+
+    private static readonly HashSet<string> BandLabHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "bandlab.com", "www.bandlab.com"
+    };
+
+    private static readonly HashSet<string> HearThisAtHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "hearthis.at", "www.hearthis.at"
     };
 
     public static DownloadSource GetDownloadSource(string? url)
@@ -65,6 +119,33 @@ public partial class DownloadService
         if (InstagramHosts.Contains(uri.Host) && IsInstagramVideoPath(uri))
             return DownloadSource.Instagram;
 
+        if (TwitterHosts.Contains(uri.Host) && IsTwitterVideoPath(uri))
+            return DownloadSource.Twitter;
+
+        if (RedditHosts.Contains(uri.Host) && IsRedditVideoPath(uri))
+            return DownloadSource.Reddit;
+
+        if (VimeoHosts.Contains(uri.Host) && IsVimeoVideoPath(uri))
+            return DownloadSource.Vimeo;
+
+        if (TwitchHosts.Contains(uri.Host) && IsTwitchVideoPath(uri))
+            return DownloadSource.Twitch;
+
+        if (IsVkHost(uri.Host) && IsVkVideoPath(uri))
+            return DownloadSource.VkVideo;
+
+        if (IsBandcampHost(uri.Host) && IsBandcampMediaPath(uri))
+            return DownloadSource.Bandcamp;
+
+        if (MixcloudHosts.Contains(uri.Host) && IsMixcloudMediaPath(uri))
+            return DownloadSource.Mixcloud;
+
+        if (BandLabHosts.Contains(uri.Host) && IsBandLabMediaPath(uri))
+            return DownloadSource.BandLab;
+
+        if (HearThisAtHosts.Contains(uri.Host) && IsHearThisAtMediaPath(uri))
+            return DownloadSource.HearThisAt;
+
         return DownloadSource.Unsupported;
     }
 
@@ -82,7 +163,6 @@ public partial class DownloadService
 
         if (segments.Length == 2 &&
             (segments[1].Equals("sets", StringComparison.OrdinalIgnoreCase) ||
-             segments[1].Equals("tracks", StringComparison.OrdinalIgnoreCase) ||
              segments[1].Equals("albums", StringComparison.OrdinalIgnoreCase) ||
              segments[1].Equals("popular-tracks", StringComparison.OrdinalIgnoreCase)))
         {
@@ -130,6 +210,145 @@ public partial class DownloadService
                path.Contains("/tv/", StringComparison.OrdinalIgnoreCase) ||
                path.Contains("/share/reel/", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsTwitterVideoPath(Uri uri)
+    {
+        if (uri.Host.Equals("t.co", StringComparison.OrdinalIgnoreCase))
+            return uri.AbsolutePath.Length > 1;
+
+        var segments = GetPathSegments(uri);
+        var statusIndex = Array.FindIndex(segments,
+            segment => segment.Equals("status", StringComparison.OrdinalIgnoreCase));
+        return statusIndex >= 0 && statusIndex + 1 < segments.Length &&
+               long.TryParse(segments[statusIndex + 1], out _);
+    }
+
+    private static bool IsRedditVideoPath(Uri uri)
+    {
+        if (uri.Host.Equals("redd.it", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.Equals("v.redd.it", StringComparison.OrdinalIgnoreCase))
+        {
+            return uri.AbsolutePath.Length > 1;
+        }
+
+        var segments = GetPathSegments(uri);
+        var commentsIndex = Array.FindIndex(segments,
+            segment => segment.Equals("comments", StringComparison.OrdinalIgnoreCase));
+        var shareIndex = Array.FindIndex(segments,
+            segment => segment.Equals("s", StringComparison.OrdinalIgnoreCase));
+        return commentsIndex >= 0 && commentsIndex + 1 < segments.Length ||
+               shareIndex >= 0 && shareIndex + 1 < segments.Length;
+    }
+
+    private static bool IsVimeoVideoPath(Uri uri)
+    {
+        var segments = GetPathSegments(uri);
+        if (segments.Length == 0 || !long.TryParse(segments[^1], out _))
+            return false;
+
+        if (uri.Host.Equals("player.vimeo.com", StringComparison.OrdinalIgnoreCase))
+            return segments.Length == 2 && segments[0].Equals("video", StringComparison.OrdinalIgnoreCase);
+
+        return segments.Length == 1 ||
+               segments.Any(segment => segment.Equals("channels", StringComparison.OrdinalIgnoreCase)) ||
+               segments.Any(segment => segment.Equals("groups", StringComparison.OrdinalIgnoreCase)) ||
+               segments.Any(segment => segment.Equals("video", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsTwitchVideoPath(Uri uri)
+    {
+        if (uri.Host.Equals("clips.twitch.tv", StringComparison.OrdinalIgnoreCase))
+            return uri.AbsolutePath.Length > 1;
+
+        if (uri.Host.Equals("player.twitch.tv", StringComparison.OrdinalIgnoreCase))
+            return uri.Query.Contains("video=", StringComparison.OrdinalIgnoreCase);
+
+        var segments = GetPathSegments(uri);
+        if (segments.Length == 0)
+            return false;
+
+        if (segments[0].Equals("videos", StringComparison.OrdinalIgnoreCase))
+            return segments.Length > 1 && long.TryParse(segments[1], out _);
+
+        if (segments[0].Equals("collections", StringComparison.OrdinalIgnoreCase))
+            return segments.Length > 1;
+
+        if (segments.Length < 2)
+            return false;
+
+        return segments[1].Equals("clip", StringComparison.OrdinalIgnoreCase) && segments.Length > 2 ||
+               segments[1].Equals("clips", StringComparison.OrdinalIgnoreCase) ||
+               segments[1].Equals("videos", StringComparison.OrdinalIgnoreCase) ||
+               (segments[1].Equals("v", StringComparison.OrdinalIgnoreCase) && segments.Length > 2) ||
+               (segments[1].Equals("video", StringComparison.OrdinalIgnoreCase) && segments.Length > 2);
+    }
+
+    private static bool IsVkHost(string host) =>
+        VkHosts.Contains(host) || host.EndsWith(".vkvideo.ru", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsVkVideoPath(Uri uri)
+    {
+        var path = uri.AbsolutePath;
+        if (path.Equals("/video_ext.php", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var segments = GetPathSegments(uri);
+        if (segments.Any(segment =>
+                segment.StartsWith("video", StringComparison.OrdinalIgnoreCase) ||
+                segment.StartsWith("clip", StringComparison.OrdinalIgnoreCase) ||
+                segment.StartsWith("wall", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("playlist", StringComparison.OrdinalIgnoreCase) ||
+                segment.Equals("collections", StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return uri.Host.EndsWith("vkvideo.ru", StringComparison.OrdinalIgnoreCase) &&
+               segments.Length > 0 && segments[0].StartsWith("@", StringComparison.Ordinal);
+    }
+
+    private static bool IsBandcampHost(string host) =>
+        host.Equals("bandcamp.com", StringComparison.OrdinalIgnoreCase) ||
+        host.EndsWith(".bandcamp.com", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsBandcampMediaPath(Uri uri)
+    {
+        if (uri.Host.Equals("bandcamp.com", StringComparison.OrdinalIgnoreCase) ||
+            uri.Host.Equals("www.bandcamp.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return uri.AbsolutePath.Trim('/').Equals("radio", StringComparison.OrdinalIgnoreCase) &&
+                   uri.Query.Contains("show=", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var segments = GetPathSegments(uri);
+        return segments.Length == 0 ||
+               segments.Length == 1 && segments[0].Equals("music", StringComparison.OrdinalIgnoreCase) ||
+               segments.Length > 1 &&
+               (segments[0].Equals("track", StringComparison.OrdinalIgnoreCase) ||
+                segments[0].Equals("album", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsMixcloudMediaPath(Uri uri)
+    {
+        var segments = GetPathSegments(uri);
+        return segments.Length > 0 &&
+               !segments[0].Equals("discover", StringComparison.OrdinalIgnoreCase) &&
+               !segments[0].Equals("live", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsBandLabMediaPath(Uri uri)
+    {
+        var segments = GetPathSegments(uri);
+        return segments.Any(segment =>
+            segment.Equals("track", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("post", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("revision", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("albums", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("collections", StringComparison.OrdinalIgnoreCase) ||
+            segment.Equals("embed", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsHearThisAtMediaPath(Uri uri) => GetPathSegments(uri).Length >= 2;
 
     private static string[] GetPathSegments(Uri uri) =>
         uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
