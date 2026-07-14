@@ -1,0 +1,211 @@
+- YouTube
+  - Single videos
+    - Audio
+      - Opus (`.webm`)
+      - M4A (`.m4a`)
+      - MP3 128 kbps (`.mp3`)
+      - MP3 96 kbps (`.mp3`)
+    - Video (`.mp4`)
+      - 2160p 4K
+      - 1440p QHD
+      - 1080p Full HD
+      - 720p HD
+      - 480p SD
+      - 360p
+      - 240p
+    - Audio fragments
+    - Video fragments
+  - Playlists
+    - Audio playlists
+      - Opus (`.webm`)
+      - M4A (`.m4a`)
+      - MP3 128 kbps (`.mp3`)
+      - MP3 96 kbps (`.mp3`)
+    - Video playlists (`.mp4`)
+      - 2160p 4K
+      - 1440p QHD
+      - 1080p Full HD
+      - 720p HD
+      - 480p SD
+      - 360p
+      - 240p
+  - Channels
+    - `youtube.com/@channel`
+    - `youtube.com/c/channel`
+    - `youtube.com/user/channel`
+    - `youtube.com/channel/channel-id`
+    - Audio channels
+      - Opus (`.webm`)
+      - M4A (`.m4a`)
+      - MP3 128 kbps (`.mp3`)
+      - MP3 96 kbps (`.mp3`)
+    - Video channels (`.mp4`)
+      - 2160p 4K
+      - 1440p QHD
+      - 1080p Full HD
+      - 720p HD
+      - 480p SD
+      - 360p
+      - 240p
+  - Supported URL hosts
+    - `youtube.com`
+    - `www.youtube.com`
+    - `m.youtube.com`
+    - `youtu.be`
+- YouTube Music
+  - Single tracks
+    - Opus (`.webm`)
+    - M4A (`.m4a`)
+    - MP3 128 kbps (`.mp3`)
+    - MP3 96 kbps (`.mp3`)
+  - Track fragments
+  - Playlists
+    - Opus (`.webm`)
+    - M4A (`.m4a`)
+    - MP3 128 kbps (`.mp3`)
+    - MP3 96 kbps (`.mp3`)
+  - `music.youtube.com` URLs
+- SoundCloud
+  - Single tracks
+    - Original downloadable audio
+    - Best available non-Opus audio
+    - Best available Opus audio
+  - Track fragments
+  - Sets
+  - Playlists
+  - Albums
+  - Artist track pages (`soundcloud.com/artist/tracks`)
+  - Collection track fragments
+  - Supported URL hosts
+    - `soundcloud.com`
+    - `www.soundcloud.com`
+    - `m.soundcloud.com`
+    - `on.soundcloud.com`
+- TikTok
+  - Individual videos in the best available quality
+  - Video fragments
+  - Standard video URLs
+  - Shared video URLs
+  - Short URLs
+    - `vm.tiktok.com`
+    - `vt.tiktok.com`
+- Facebook
+  - Individual videos in the best available quality
+  - Video fragments
+  - Video posts
+  - Watch videos
+  - Reels
+  - Shared reels
+  - Shared videos
+  - `fb.watch` short URLs
+  - Supported URL hosts
+    - `facebook.com`
+    - `www.facebook.com`
+    - `m.facebook.com`
+    - `web.facebook.com`
+- Instagram
+  - Individual videos in the best available quality
+  - Video fragments
+  - Reels
+  - Video posts
+  - IGTV videos
+  - Shared reels
+  - Supported URL hosts
+    - `instagram.com`
+    - `www.instagram.com`
+- X / Twitter
+  - Individual status videos in the best available quality
+  - Video fragments
+  - X status URLs
+  - Twitter status URLs
+  - `t.co` short URLs
+  - Supported URL hosts
+    - `x.com`
+    - `www.x.com`
+    - `mobile.x.com`
+    - `twitter.com`
+    - `www.twitter.com`
+    - `mobile.twitter.com`
+- Reddit
+  - Individual video posts in the best available quality
+  - Video fragments
+  - Subreddit post URLs
+  - Direct post URLs
+  - Shared post URLs
+  - `redd.it` short URLs
+  - `v.redd.it` direct video URLs
+  - Supported URL hosts
+    - `reddit.com`
+    - `www.reddit.com`
+    - `old.reddit.com`
+    - `new.reddit.com`
+- Vimeo
+  - Individual public videos in the best available quality
+  - Video fragments
+  - Standard video URLs
+  - Embedded player video URLs
+  - Channel video URLs
+  - Group video URLs
+  - Supported URL hosts
+    - `vimeo.com`
+    - `www.vimeo.com`
+    - `player.vimeo.com`
+- Twitch
+  - Archived broadcasts in the best available quality
+  - Clips in the best available quality
+  - Collections
+  - Video fragments
+  - Supported URL hosts
+    - `twitch.tv`
+    - `www.twitch.tv`
+    - `go.twitch.tv`
+    - `m.twitch.tv`
+    - `clips.twitch.tv`
+    - `player.twitch.tv`
+- VK / VK Video
+  - Individual public videos in the best available quality
+  - Public clips in the best available quality
+  - Public video playlists and collections
+  - Video fragments
+  - Supported URL hosts
+    - `vk.com`
+    - `m.vk.com`
+    - `vk.ru`
+    - `m.vk.ru`
+    - `vkvideo.ru`
+    - VK Video subdomains
+- Bandcamp
+  - Single tracks
+    - Original downloadable audio when available
+    - Best available non-Opus audio
+    - Best available Opus audio
+  - Albums
+  - Audio fragments
+  - Artist `bandcamp.com` subdomains
+- Mixcloud
+  - Individual mixes
+    - Best available non-Opus audio
+    - Best available Opus audio
+  - Playlists
+  - Audio fragments
+  - Supported URL hosts
+    - `mixcloud.com`
+    - `www.mixcloud.com`
+    - `beta.mixcloud.com`
+    - `m.mixcloud.com`
+- BandLab
+  - Individual public tracks
+  - Public albums
+  - Audio fragments
+  - Supported URL hosts
+    - `bandlab.com`
+    - `www.bandlab.com`
+- HearThis.at
+  - Individual public tracks
+    - Original downloadable audio when available
+    - Best available non-Opus audio
+    - Best available Opus audio
+  - Audio fragments
+  - Supported URL hosts
+    - `hearthis.at`
+    - `www.hearthis.at`

@@ -70,7 +70,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public bool IsAudioQualitySelectionEnabled => CurrentSource != DownloadSource.SoundCloud;
+    public bool IsAudioQualitySelectionEnabled => !IsExternalAudioSource(CurrentSource);
 
     private string _outputFolder = string.Empty;
     public string OutputFolder
@@ -86,7 +86,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         set
         {
             if (!_isApplyingSourceRoute &&
-                ((CurrentSource == DownloadSource.SoundCloud && value != DownloadMode.Audio) ||
+                ((IsExternalAudioSource(CurrentSource) && value != DownloadMode.Audio) ||
                  (IsExternalVideoSource(CurrentSource) && value != DownloadMode.Video)))
             {
                 return;
@@ -419,6 +419,10 @@ public partial class MainViewModel : INotifyPropertyChanged
             switch (source)
             {
                 case DownloadSource.SoundCloud:
+                case DownloadSource.Bandcamp:
+                case DownloadSource.Mixcloud:
+                case DownloadSource.BandLab:
+                case DownloadSource.HearThisAt:
                     CancelFormatCheck();
                     SetSoundCloudAudioQuality();
                     SelectedMode = DownloadMode.Audio;
@@ -427,6 +431,11 @@ public partial class MainViewModel : INotifyPropertyChanged
                 case DownloadSource.TikTok:
                 case DownloadSource.Facebook:
                 case DownloadSource.Instagram:
+                case DownloadSource.Twitter:
+                case DownloadSource.Reddit:
+                case DownloadSource.Vimeo:
+                case DownloadSource.Twitch:
+                case DownloadSource.VkVideo:
                     RestoreYouTubeAudioQualities();
                     SelectedMode = DownloadMode.Video;
                     SetExternalVideoQuality();
@@ -454,7 +463,13 @@ public partial class MainViewModel : INotifyPropertyChanged
     }
 
     private static bool IsExternalVideoSource(DownloadSource source) =>
-        source is DownloadSource.TikTok or DownloadSource.Facebook or DownloadSource.Instagram;
+        source is DownloadSource.TikTok or DownloadSource.Facebook or DownloadSource.Instagram or
+            DownloadSource.Twitter or DownloadSource.Reddit or DownloadSource.Vimeo or
+            DownloadSource.Twitch or DownloadSource.VkVideo;
+
+    private static bool IsExternalAudioSource(DownloadSource source) =>
+        source is DownloadSource.SoundCloud or DownloadSource.Bandcamp or
+            DownloadSource.Mixcloud or DownloadSource.BandLab or DownloadSource.HearThisAt;
 
     private AudioQuality? GetDefaultAudioQuality() =>
         AudioQualities.FirstOrDefault(q => q.Id == (string.IsNullOrEmpty(_settings.SelectedAudioQuality) ? "m4a" : _settings.SelectedAudioQuality) && q.IsAvailable)
@@ -708,11 +723,53 @@ public partial class MainViewModel : INotifyPropertyChanged
                 });
             };
 
-            if (source == DownloadSource.SoundCloud)
+            if (IsExternalAudioSource(source))
             {
-                var result = await _downloadService.DownloadSoundCloudAsync(
-                    Url, OutputFolder, timeFrom, timeTo, progress,
-                    _cancellationTokenSource.Token, onSpeedEta);
+                var result = source switch
+                {
+                    DownloadSource.SoundCloud => await _downloadService.DownloadSoundCloudAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.Bandcamp => await _downloadService.DownloadBandcampAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.Mixcloud => await _downloadService.DownloadMixcloudAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.BandLab => await _downloadService.DownloadBandLabAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.HearThisAt => await _downloadService.DownloadHearThisAtAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    _ => throw new InvalidOperationException("Unsupported external audio source")
+                };
+
+                DownloadedFilePath = result.path;
+                IsIndeterminate = false;
+                ProgressText = "100%";
+                DownloadSpeed = "";
+                TimeRemaining = "";
+                Status = result.isCollection
+                    ? string.Format(_loc.StatusPlaylistCompleted, System.IO.Path.GetFileName(result.path))
+                    : string.IsNullOrEmpty(result.actualQuality)
+                        ? string.Format(_loc.StatusCompleted, result.title)
+                        : $"{string.Format(_loc.StatusCompleted, result.title)} ({result.actualQuality})";
+                return;
+            }
+
+            if (source is DownloadSource.Twitch or DownloadSource.VkVideo)
+            {
+                var result = source switch
+                {
+                    DownloadSource.Twitch => await _downloadService.DownloadTwitchAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.VkVideo => await _downloadService.DownloadVkVideoAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    _ => throw new InvalidOperationException("Unsupported collection video source")
+                };
 
                 DownloadedFilePath = result.path;
                 IsIndeterminate = false;
@@ -738,6 +795,15 @@ public partial class MainViewModel : INotifyPropertyChanged
                         Url, OutputFolder, timeFrom, timeTo, progress,
                         _cancellationTokenSource.Token, onSpeedEta),
                     DownloadSource.Instagram => await _downloadService.DownloadInstagramAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.Twitter => await _downloadService.DownloadTwitterAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.Reddit => await _downloadService.DownloadRedditAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.Vimeo => await _downloadService.DownloadVimeoAsync(
                         Url, OutputFolder, timeFrom, timeTo, progress,
                         _cancellationTokenSource.Token, onSpeedEta),
                     _ => throw new InvalidOperationException("Unsupported external video source")
@@ -894,7 +960,10 @@ public class Localization
     public string FragmentHintText { get; private set; } = "";
     public string FragmentStartLabel { get; private set; } = "";
     public string FragmentStopLabel { get; private set; } = "";
-    public string FragmentFormatHint { get; private set; } = "";
+    public string FragmentStartPlaceholder { get; private set; } = "";
+    public string FragmentStopPlaceholder { get; private set; } = "";
+    public string FragmentStartHint { get; private set; } = "";
+    public string FragmentStopHint { get; private set; } = "";
     public string FragmentSaveButton { get; private set; } = "";
     public string FragmentClearButton { get; private set; } = "";
     public string FragmentCancelButton { get; private set; } = "";
@@ -967,13 +1036,16 @@ public class Localization
         EmbedThumbnailLabel = "Embed thumbnail",
         AudioTab = "Audio",
         VideoTab = "Video",
-        FragmentDialogTitle = "Fragment",
-        FragmentHintText = "Set start, stop or both boundaries.\nEmpty start — from beginning. Empty stop — to end.",
-        FragmentStartLabel = "Start",
-        FragmentStopLabel = "Stop",
-        FragmentFormatHint = "M — minutes, HH — hours, SS — seconds\nExample: 1:30 or 01:02:30",
-        FragmentSaveButton = "Save",
-        FragmentClearButton = "Clear",
+        FragmentDialogTitle = "Select fragment",
+        FragmentHintText = "To download a specific part of the audio or video, enter its start and end times. Either field may be left empty.",
+        FragmentStartLabel = "Fragment start",
+        FragmentStopLabel = "Fragment end",
+        FragmentStartPlaceholder = "Example: 01:40 — 1 minute 40 seconds",
+        FragmentStopPlaceholder = "Example: 01:02:30 — 1 hour 2 minutes 30 seconds",
+        FragmentStartHint = "Leave empty to download from the beginning.",
+        FragmentStopHint = "Leave empty to download to the end.",
+        FragmentSaveButton = "Apply",
+        FragmentClearButton = "Reset",
         FragmentCancelButton = "Cancel",
         FragmentErrorText = "Enter time in M:SS or HH:MM:SS format",
         StatusPlaylistCompleted = "Playlist downloaded: {0}",
@@ -1034,13 +1106,16 @@ public class Localization
         EmbedThumbnailLabel = "Встроить обложку",
         AudioTab = "Аудио",
         VideoTab = "Видео",
-        FragmentDialogTitle = "Фрагмент",
-        FragmentHintText = "Укажите старт, стоп или обе границы.\nПустой старт — с начала. Пустой стоп — до конца.",
-        FragmentStartLabel = "Старт",
-        FragmentStopLabel = "Стоп",
-        FragmentFormatHint = "M — минуты, HH — часы, SS — секунды\nНапример: 1:30 или 01:02:30",
-        FragmentSaveButton = "Сохранить",
-        FragmentClearButton = "Очистить",
+        FragmentDialogTitle = "Выбор фрагмента",
+        FragmentHintText = "Чтобы скачать определённый фрагмент аудио или видео, укажите время начала и конца. Любое поле можно оставить пустым.",
+        FragmentStartLabel = "Начало фрагмента",
+        FragmentStopLabel = "Конец фрагмента",
+        FragmentStartPlaceholder = "Пример: 01:40 — 1 минута 40 секунд",
+        FragmentStopPlaceholder = "Пример: 01:02:30 — 1 час 2 минуты 30 секунд",
+        FragmentStartHint = "Оставьте пустым, чтобы скачать с начала.",
+        FragmentStopHint = "Оставьте пустым, чтобы скачать до конца.",
+        FragmentSaveButton = "Применить",
+        FragmentClearButton = "Сбросить",
         FragmentCancelButton = "Отмена",
         FragmentErrorText = "Введите время в формате M:SS или HH:MM:SS",
         StatusPlaylistCompleted = "Плейлист скачан: {0}",
@@ -1101,13 +1176,16 @@ public class Localization
         EmbedThumbnailLabel = "Вбудувати обкладинку",
         AudioTab = "Аудіо",
         VideoTab = "Відео",
-        FragmentDialogTitle = "Фрагмент",
-        FragmentHintText = "Вкажіть старт, стоп або обидві межі.\nПорожній старт — з початку. Порожній стоп — до кінця.",
-        FragmentStartLabel = "Старт",
-        FragmentStopLabel = "Стоп",
-        FragmentFormatHint = "M — хвилини, HH — години, SS — секунди\nНаприклад: 1:30 або 01:02:30",
-        FragmentSaveButton = "Зберегти",
-        FragmentClearButton = "Очистити",
+        FragmentDialogTitle = "Вибір фрагмента",
+        FragmentHintText = "Щоб завантажити певний фрагмент аудіо або відео, вкажіть час початку та завершення. Будь-яке поле можна залишити порожнім.",
+        FragmentStartLabel = "Початок фрагмента",
+        FragmentStopLabel = "Кінець фрагмента",
+        FragmentStartPlaceholder = "Приклад: 01:40 — 1 хвилина 40 секунд",
+        FragmentStopPlaceholder = "Приклад: 01:02:30 — 1 година 2 хвилини 30 секунд",
+        FragmentStartHint = "Залиште порожнім, щоб завантажити від початку.",
+        FragmentStopHint = "Залиште порожнім, щоб завантажити до кінця.",
+        FragmentSaveButton = "Застосувати",
+        FragmentClearButton = "Скинути",
         FragmentCancelButton = "Скасувати",
         FragmentErrorText = "Введіть час у форматі M:SS або HH:MM:SS",
         StatusPlaylistCompleted = "Плейлист завантажено: {0}",
