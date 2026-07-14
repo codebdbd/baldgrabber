@@ -16,7 +16,7 @@ using SixLabors.ImageSharp.Processing;
 
 namespace BaldGrabber.Services;
 
-public class DownloadService
+public partial class DownloadService
 {
     private readonly string _ytDlpPath;
     private readonly string _ffmpegPath;
@@ -229,9 +229,9 @@ public class DownloadService
         process.OutputDataReceived += (_, e) => { if (e.Data != null) ParseProgress(e.Data, progress, onSpeedEta); };
         process.ErrorDataReceived += (_, e) => { if (e.Data != null) ParseProgress(e.Data, progress, onSpeedEta); };
 
-        using var reg = ct.Register(() => { try { process.Kill(entireProcessTree: true); } catch { } });
-
+        ct.ThrowIfCancellationRequested();
         process.Start();
+        using var reg = ct.Register(() => { try { process.Kill(entireProcessTree: true); } catch { } });
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
@@ -253,8 +253,10 @@ public class DownloadService
         process.StartInfo.ArgumentList.Add("--ignore-config");
         process.StartInfo.ArgumentList.Add(url);
 
+        ct.ThrowIfCancellationRequested();
+        process.Start();
         using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
-        process.Start(); process.BeginErrorReadLine();
+        process.BeginErrorReadLine();
 
         using var reader = new StreamReader(process.StandardOutput.BaseStream, System.Text.Encoding.UTF8);
         var titleOutput = await reader.ReadToEndAsync(ct);
@@ -354,8 +356,9 @@ public class DownloadService
             process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
             process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
 
-            using var reg = cancellationToken.Register(() => { try { process.Kill(entireProcessTree: true); } catch { } });
+            cancellationToken.ThrowIfCancellationRequested();
             process.Start();
+            using var reg = cancellationToken.Register(() => { try { process.Kill(entireProcessTree: true); } catch { } });
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
             await process.WaitForExitAsync(cancellationToken);
@@ -473,8 +476,9 @@ public class DownloadService
         process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
         process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
 
-        using var reg = cancellationToken.Register(() => { try { process.Kill(entireProcessTree: true); } catch { } });
+        cancellationToken.ThrowIfCancellationRequested();
         process.Start();
+        using var reg = cancellationToken.Register(() => { try { process.Kill(entireProcessTree: true); } catch { } });
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         process.WaitForExit();
@@ -513,8 +517,10 @@ public class DownloadService
         using var process = new Process { StartInfo = new ProcessStartInfo { FileName = _ffmpegPath, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true } };
         foreach (var arg in args) process.StartInfo.ArgumentList.Add(arg);
 
+        ct.ThrowIfCancellationRequested();
+        process.Start();
         using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
-        process.Start(); process.BeginErrorReadLine();
+        process.BeginErrorReadLine();
 
         if (!process.WaitForExit(TimeSpan.FromMinutes(10))) { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } return -1; }
         ct.ThrowIfCancellationRequested();
@@ -541,8 +547,9 @@ public class DownloadService
             process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
             process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
 
-            using var reg = timeoutCts.Token.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
+            timeoutCts.Token.ThrowIfCancellationRequested();
             process.Start();
+            using var reg = timeoutCts.Token.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
             await process.WaitForExitAsync(timeoutCts.Token);
@@ -642,8 +649,9 @@ public class DownloadService
             process.StartInfo.ArgumentList.Add("-print_format"); process.StartInfo.ArgumentList.Add("json");
             process.StartInfo.ArgumentList.Add("-show_streams"); process.StartInfo.ArgumentList.Add(filePath);
 
-            using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
+            ct.ThrowIfCancellationRequested();
             process.Start();
+            using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
 
             using var reader = new StreamReader(process.StandardOutput.BaseStream, System.Text.Encoding.UTF8);
             var output = await reader.ReadToEndAsync(ct);
@@ -689,8 +697,9 @@ public class DownloadService
         process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
         process.ErrorDataReceived += (_, e) => { if (e.Data != null) error.AppendLine(e.Data); };
 
-        using var reg = timeoutCts.Token.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
+        timeoutCts.Token.ThrowIfCancellationRequested();
         process.Start();
+        using var reg = timeoutCts.Token.Register(() => { try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { } });
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         await process.WaitForExitAsync(timeoutCts.Token);

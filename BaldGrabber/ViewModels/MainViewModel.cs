@@ -27,8 +27,8 @@ public partial class MainViewModel : INotifyPropertyChanged
     private Settings _settings;
     private CancellationTokenSource? _cancellationTokenSource;
     private CancellationTokenSource? _formatCancellationTokenSource;
-
-
+    private DownloadMode _youtubeMode = DownloadMode.Video;
+    private bool _isApplyingSourceRoute;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -48,12 +48,29 @@ public partial class MainViewModel : INotifyPropertyChanged
         {
             if (SetProperty(ref _url, value))
             {
+                ApplySourceRouting(DownloadService.GetDownloadSource(value));
                 UpdateCanDownload();
-                if (SelectedMode == DownloadMode.Video)
+                if (SelectedMode == DownloadMode.Video && CurrentSource == DownloadSource.YouTube)
                     _ = FetchAvailableFormatsAsync();
             }
         }
     }
+
+    private DownloadSource _currentSource = DownloadSource.Unsupported;
+    public DownloadSource CurrentSource
+    {
+        get => _currentSource;
+        private set
+        {
+            if (SetProperty(ref _currentSource, value))
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsAudioQualitySelectionEnabled)));
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanSelectVideoQuality)));
+            }
+        }
+    }
+
+    public bool IsAudioQualitySelectionEnabled => CurrentSource != DownloadSource.SoundCloud;
 
     private string _outputFolder = string.Empty;
     public string OutputFolder
@@ -68,17 +85,38 @@ public partial class MainViewModel : INotifyPropertyChanged
         get => _selectedMode;
         set
         {
+            if (!_isApplyingSourceRoute &&
+                ((CurrentSource == DownloadSource.SoundCloud && value != DownloadMode.Audio) ||
+                 (IsExternalVideoSource(CurrentSource) && value != DownloadMode.Video)))
+            {
+                return;
+            }
+
             if (SetProperty(ref _selectedMode, value))
             {
                 UpdateButtonLabel();
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanSelectVideoQuality)));
-                _settings.SelectedMode = value.ToString();
-                _ = _settingsService.SaveSettingsAsync(_settings);
+
+                if (!_isApplyingSourceRoute &&
+                    CurrentSource is DownloadSource.YouTube or DownloadSource.Unsupported)
+                {
+                    _youtubeMode = value;
+                    _settings.SelectedMode = value.ToString();
+                    _ = _settingsService.SaveSettingsAsync(_settings);
+                }
 
                 if (value == DownloadMode.Video)
                 {
-                    ResetVideoQualitySelection();
-                    _ = FetchAvailableFormatsAsync();
+                    if (IsExternalVideoSource(CurrentSource))
+                    {
+                        SetExternalVideoQuality();
+                    }
+                    else
+                    {
+                        ResetVideoQualitySelection();
+                        if (CurrentSource == DownloadSource.YouTube)
+                            _ = FetchAvailableFormatsAsync();
+                    }
                 }
                 else
                 {
@@ -100,7 +138,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         {
             if (SetProperty(ref _selectedAudioQuality, value))
             {
-                if (value != null && value.Id != string.Empty)
+                if (value != null && value.Id != string.Empty &&
+                    CurrentSource is DownloadSource.YouTube or DownloadSource.Unsupported)
                 {
                     _settings.SelectedAudioQuality = value.Id;
                     _settings.SelectedQuality = value.Id;
@@ -228,7 +267,8 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    public bool CanSelectVideoQuality => HasCheckedVideoFormats && !IsCheckingFormats;
+    public bool CanSelectVideoQuality =>
+        CurrentSource == DownloadSource.YouTube && HasCheckedVideoFormats && !IsCheckingFormats;
 
     private bool _canDownload;
     public bool CanDownload
@@ -253,6 +293,8 @@ public partial class MainViewModel : INotifyPropertyChanged
     }
     private VideoQualityOption VideoPlaceholderQuality { get; } = new() { Id = "", Name = "", Description = "" };
     private VideoQualityOption CheckingFormatsQuality { get; } = new() { Id = "", Name = "", Description = "" };
+    private VideoQualityOption ExternalVideoQuality { get; } = new() { Id = "external_best", IsAvailable = true };
+    private AudioQuality SoundCloudAudioQuality { get; } = new() { Id = "soundcloud_auto", IsAvailable = true };
 
     private string _downloadButtonText = "";
     public string DownloadButtonText { get => _downloadButtonText; set => SetProperty(ref _downloadButtonText, value); }
@@ -300,6 +342,7 @@ public partial class MainViewModel : INotifyPropertyChanged
 
         var savedMode = Enum.TryParse<DownloadMode>(_settings.SelectedMode, out var m) ? m : DownloadMode.Video;
         _selectedMode = savedMode;
+        _youtubeMode = savedMode;
         ResetVideoQualitySelection();
 
         var savedQualityId = !string.IsNullOrEmpty(_settings.SelectedAudioQuality)
@@ -320,6 +363,98 @@ public partial class MainViewModel : INotifyPropertyChanged
         VideoQualities = new ObservableCollection<VideoQualityOption> { VideoPlaceholderQuality };
         SelectedVideoQuality = VideoPlaceholderQuality;
     }
+
+    private void SetExternalVideoQuality()
+    {
+        CancelFormatCheck();
+        IsCheckingFormats = false;
+        FormatsStatus = "";
+        ExternalVideoQuality.Name = _loc.AutomaticQualityName;
+        ExternalVideoQuality.Description = _loc.QualityBestDesc;
+        VideoQualities = new ObservableCollection<VideoQualityOption> { ExternalVideoQuality };
+        SelectedVideoQuality = ExternalVideoQuality;
+        HasCheckedVideoFormats = true;
+    }
+
+    private void SetSoundCloudAudioQuality()
+    {
+        SoundCloudAudioQuality.Name = _loc.AutomaticQualityName;
+        SoundCloudAudioQuality.Description = _loc.QualityBestDesc;
+        AudioQualities.Clear();
+        AudioQualities.Add(SoundCloudAudioQuality);
+        SelectedAudioQuality = SoundCloudAudioQuality;
+    }
+
+    private void RestoreYouTubeAudioQualities()
+    {
+        if (AudioQualities.Count == _audioQualities.Count &&
+            AudioQualities.All(item => item.Id != "soundcloud_auto"))
+        {
+            return;
+        }
+
+        AudioQualities.Clear();
+        foreach (var quality in _audioQualities)
+            AudioQualities.Add(quality);
+
+        SelectedAudioQuality = GetDefaultAudioQuality();
+    }
+
+    private void ApplySourceRouting(DownloadSource source)
+    {
+        if (CurrentSource == source)
+            return;
+
+        CurrentSource = source;
+        if (source != DownloadSource.YouTube)
+        {
+            CancelFormatCheck();
+            IsCheckingFormats = false;
+            FormatsStatus = "";
+        }
+
+        _isApplyingSourceRoute = true;
+        try
+        {
+            switch (source)
+            {
+                case DownloadSource.SoundCloud:
+                    CancelFormatCheck();
+                    SetSoundCloudAudioQuality();
+                    SelectedMode = DownloadMode.Audio;
+                    break;
+
+                case DownloadSource.TikTok:
+                case DownloadSource.Facebook:
+                case DownloadSource.Instagram:
+                    RestoreYouTubeAudioQualities();
+                    SelectedMode = DownloadMode.Video;
+                    SetExternalVideoQuality();
+                    break;
+
+                case DownloadSource.YouTube:
+                case DownloadSource.Unsupported:
+                    RestoreYouTubeAudioQualities();
+                    SelectedMode = _youtubeMode;
+                    if (_youtubeMode == DownloadMode.Video)
+                    {
+                        ResetVideoQualitySelection();
+                    }
+                    break;
+            }
+        }
+        finally
+        {
+            _isApplyingSourceRoute = false;
+        }
+
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsAudioQualitySelectionEnabled)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(CanSelectVideoQuality)));
+        UpdateCanDownload();
+    }
+
+    private static bool IsExternalVideoSource(DownloadSource source) =>
+        source is DownloadSource.TikTok or DownloadSource.Facebook or DownloadSource.Instagram;
 
     private AudioQuality? GetDefaultAudioQuality() =>
         AudioQualities.FirstOrDefault(q => q.Id == (string.IsNullOrEmpty(_settings.SelectedAudioQuality) ? "m4a" : _settings.SelectedAudioQuality) && q.IsAvailable)
@@ -440,7 +575,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             ? SelectedAudioQuality is { Id.Length: > 0, IsAvailable: true }
             : SelectedVideoQuality is { Id.Length: > 0, IsAvailable: true } && HasCheckedVideoFormats && !IsCheckingFormats;
 
-        CanDownload = !string.IsNullOrWhiteSpace(Url) &&
+        CanDownload = DownloadService.IsValidSupportedUrl(Url) &&
                       !string.IsNullOrWhiteSpace(OutputFolder) &&
                       System.IO.Directory.Exists(OutputFolder) &&
                       !IsDownloading &&
@@ -482,7 +617,8 @@ public partial class MainViewModel : INotifyPropertyChanged
             Status = _loc.StatusEnterUrl;
             return;
         }
-        if (!Services.DownloadService.IsValidYouTubeUrl(Url))
+        var source = Services.DownloadService.GetDownloadSource(Url);
+        if (source == DownloadSource.Unsupported)
         {
             Status = _loc.StatusInvalidUrl;
             return;
@@ -501,8 +637,12 @@ public partial class MainViewModel : INotifyPropertyChanged
             DownloadedFilePath = null;
             FormatsStatus = "";
 
-            _settings.SelectedMode = SelectedMode.ToString();
-            if (SelectedMode == DownloadMode.Audio && !string.IsNullOrEmpty(SelectedAudioQuality?.Id))
+            if (source == DownloadSource.YouTube)
+                _settings.SelectedMode = SelectedMode.ToString();
+
+            if (source == DownloadSource.YouTube &&
+                SelectedMode == DownloadMode.Audio &&
+                !string.IsNullOrEmpty(SelectedAudioQuality?.Id))
             {
                 _settings.SelectedAudioQuality = SelectedAudioQuality.Id;
                 _settings.SelectedQuality = SelectedAudioQuality.Id;
@@ -567,6 +707,52 @@ public partial class MainViewModel : INotifyPropertyChanged
                     TimeRemaining = eta;
                 });
             };
+
+            if (source == DownloadSource.SoundCloud)
+            {
+                var result = await _downloadService.DownloadSoundCloudAsync(
+                    Url, OutputFolder, timeFrom, timeTo, progress,
+                    _cancellationTokenSource.Token, onSpeedEta);
+
+                DownloadedFilePath = result.path;
+                IsIndeterminate = false;
+                ProgressText = "100%";
+                DownloadSpeed = "";
+                TimeRemaining = "";
+                Status = result.isCollection
+                    ? string.Format(_loc.StatusPlaylistCompleted, System.IO.Path.GetFileName(result.path))
+                    : string.IsNullOrEmpty(result.actualQuality)
+                        ? string.Format(_loc.StatusCompleted, result.title)
+                        : $"{string.Format(_loc.StatusCompleted, result.title)} ({result.actualQuality})";
+                return;
+            }
+
+            if (IsExternalVideoSource(source))
+            {
+                var result = source switch
+                {
+                    DownloadSource.TikTok => await _downloadService.DownloadTikTokAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.Facebook => await _downloadService.DownloadFacebookAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    DownloadSource.Instagram => await _downloadService.DownloadInstagramAsync(
+                        Url, OutputFolder, timeFrom, timeTo, progress,
+                        _cancellationTokenSource.Token, onSpeedEta),
+                    _ => throw new InvalidOperationException("Unsupported external video source")
+                };
+
+                DownloadedFilePath = result.filePath;
+                IsIndeterminate = false;
+                ProgressText = "100%";
+                DownloadSpeed = "";
+                TimeRemaining = "";
+                Status = string.IsNullOrEmpty(result.actualQuality)
+                    ? string.Format(_loc.StatusCompleted, result.title)
+                    : $"{string.Format(_loc.StatusCompleted, result.title)} ({result.actualQuality})";
+                return;
+            }
 
             if (isPlaylist || isChannel)
             {
@@ -693,6 +879,7 @@ public class Localization
     public string StatusCancelled { get; private set; } = "";
     public string StatusError { get; private set; } = "";
     public string QualityBestDesc { get; private set; } = "";
+    public string AutomaticQualityName { get; private set; } = "";
     public string Quality320Desc { get; private set; } = "";
     public string Quality256Desc { get; private set; } = "";
     public string Quality192Desc { get; private set; } = "";
@@ -735,8 +922,8 @@ public class Localization
         UrlLabel = "YouTube Link",
         UrlPlaceholder = "Paste a YouTube link",
         PasteUrlToolTip = "Paste from clipboard",
-        PasteUrlUnavailableToolTip = "Clipboard contains no YouTube link",
-        StatusClipboardEmpty = "Clipboard contains no YouTube link",
+        PasteUrlUnavailableToolTip = "Clipboard contains no supported link",
+        StatusClipboardEmpty = "Clipboard contains no supported link",
         FolderLabel = "Save folder",
         BrowseButton = "Select",
         QualityLabel = "Audio quality",
@@ -768,6 +955,7 @@ public class Localization
         StatusCancelled = "Download cancelled",
         StatusError = "Error: {0}",
         QualityBestDesc = "Best available quality (original)",
+        AutomaticQualityName = "Automatic",
         Quality320Desc = "Maximum MP3 quality",
         Quality256Desc = "Good balance of quality and size",
         Quality192Desc = "Standard quality",
@@ -801,8 +989,8 @@ public class Localization
         UrlLabel = "Ссылка на YouTube",
         UrlPlaceholder = "Вставьте ссылку YouTube",
         PasteUrlToolTip = "Вставить из буфера обмена",
-        PasteUrlUnavailableToolTip = "В буфере нет ссылки YouTube",
-        StatusClipboardEmpty = "В буфере нет ссылки YouTube",
+        PasteUrlUnavailableToolTip = "В буфере нет поддерживаемой ссылки",
+        StatusClipboardEmpty = "В буфере нет поддерживаемой ссылки",
         FolderLabel = "Папка для сохранения",
         BrowseButton = "Выбрать",
         QualityLabel = "Качество аудио",
@@ -834,6 +1022,7 @@ public class Localization
         StatusCancelled = "Загрузка отменена",
         StatusError = "Ошибка: {0}",
         QualityBestDesc = "Лучшее доступное качество",
+        AutomaticQualityName = "Автоматически",
         Quality320Desc = "Максимальное качество MP3",
         Quality256Desc = "Хороший баланс качества и размера",
         Quality192Desc = "Стандартное качество",
@@ -867,8 +1056,8 @@ public class Localization
         UrlLabel = "Посилання на YouTube",
         UrlPlaceholder = "Вставте посилання YouTube",
         PasteUrlToolTip = "Вставити з буфера обміну",
-        PasteUrlUnavailableToolTip = "У буфері немає посилання YouTube",
-        StatusClipboardEmpty = "У буфері немає посилання YouTube",
+        PasteUrlUnavailableToolTip = "У буфері немає підтримуваного посилання",
+        StatusClipboardEmpty = "У буфері немає підтримуваного посилання",
         FolderLabel = "Папка для збереження",
         BrowseButton = "Обрати",
         QualityLabel = "Якість аудіо",
@@ -900,6 +1089,7 @@ public class Localization
         StatusCancelled = "Завантаження скасовано",
         StatusError = "Помилка: {0}",
         QualityBestDesc = "Найкраща доступна якість (оригінал)",
+        AutomaticQualityName = "Автоматично",
         Quality320Desc = "Максимальна якість MP3",
         Quality256Desc = "Гарний баланс якості та розміру",
         Quality192Desc = "Стандартна якість",

@@ -69,7 +69,7 @@ public partial class App : Application
                 Log.CloseAndFlush();
                 _mutex.Dispose();
                 _mutex = null;
-                Exit();
+                Environment.Exit(0);
                 return;
             }
 

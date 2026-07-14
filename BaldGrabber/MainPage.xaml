@@ -376,6 +376,7 @@
                             Style="{StaticResource DarkComboBox}"
                             ItemsSource="{Binding AudioQualities}"
                             SelectedItem="{Binding SelectedAudioQuality, Mode=TwoWay}"
+                            IsEnabled="{Binding IsAudioQualitySelectionEnabled}"
                             HorizontalAlignment="Stretch">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="models:AudioQuality">

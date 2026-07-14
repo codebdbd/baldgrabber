@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Windows.UI;
 using BaldGrabber.Models;
+using BaldGrabber.Services;
 using BaldGrabber.ViewModels;
 using Serilog;
 using System.Runtime.InteropServices;
@@ -51,14 +52,14 @@ public sealed partial class MainPage : Page
                 if (vm.IsDownloading)
                 {
                     StatusPulseStoryboard.Begin();
-                    SetOtherTabEnabled(vm.SelectedMode, false);
+                    UpdateTabAvailability(vm);
                     UpdateCancelButtonStyle(true);
                 }
                 else
                 {
                     StatusPulseStoryboard.Stop();
                     StatusText.Opacity = 1;
-                    SetOtherTabEnabled(vm.SelectedMode, true);
+                    UpdateTabAvailability(vm);
                     UpdateCancelButtonStyle(false);
                 }
             }
@@ -75,6 +76,11 @@ public sealed partial class MainPage : Page
             else if (e.PropertyName == nameof(vm.SelectedMode))
             {
                 ApplyModeStyle(vm.SelectedMode);
+                UpdateTabAvailability(vm);
+            }
+            else if (e.PropertyName == nameof(vm.CurrentSource))
+            {
+                UpdateTabAvailability(vm);
             }
             else if (e.PropertyName == nameof(vm.HasFragment))
             {
@@ -89,6 +95,7 @@ public sealed partial class MainPage : Page
         UpdateFragmentButtonStyle(vm);
         UpdateCancelButtonStyle(vm.IsDownloading);
         UpdateOpenFolderButtonStyle(!string.IsNullOrWhiteSpace(vm.DownloadedFilePath));
+        UpdateTabAvailability(vm);
     }
 
     private void UpdateCancelButtonStyle(bool isActive)
@@ -188,31 +195,51 @@ public sealed partial class MainPage : Page
             UpdateFragmentButtonStyle(vm);
     }
 
-    private void SetOtherTabEnabled(DownloadMode currentMode, bool enabled)
+    private void UpdateTabAvailability(MainViewModel vm)
     {
-        var otherTabButton = currentMode == DownloadMode.Audio ? VideoTabButton : AudioTabButton;
-        var otherTabBorder = currentMode == DownloadMode.Audio ? VideoTabBorder : AudioTabBorder;
-        var otherTabText = currentMode == DownloadMode.Audio ? VideoTabText : AudioTabText;
-        var otherTabIcon = FindChild<FontIcon>(otherTabButton);
+        var audioEnabled = vm.IsDownloading
+            ? vm.SelectedMode == DownloadMode.Audio
+            : vm.CurrentSource is not (DownloadSource.TikTok or DownloadSource.Facebook or DownloadSource.Instagram);
+        var videoEnabled = vm.IsDownloading
+            ? vm.SelectedMode == DownloadMode.Video
+            : vm.CurrentSource != DownloadSource.SoundCloud;
 
-        otherTabButton.IsEnabled = enabled;
+        SetTabEnabled(AudioTabButton, AudioTabBorder, AudioTabText, audioEnabled,
+            vm.SelectedMode == DownloadMode.Audio, vm.IsDownloading);
+        SetTabEnabled(VideoTabButton, VideoTabBorder, VideoTabText, videoEnabled,
+            vm.SelectedMode == DownloadMode.Video, vm.IsDownloading);
+    }
+
+    private void SetTabEnabled(
+        Button tabButton,
+        Border tabBorder,
+        TextBlock tabText,
+        bool enabled,
+        bool isActive,
+        bool isDownloading)
+    {
+        var tabIcon = FindChild<FontIcon>(tabButton);
+        tabButton.IsEnabled = enabled;
 
         if (enabled)
         {
-            otherTabBorder.Opacity = 1.0;
-            otherTabText.Foreground = new SolidColorBrush(Color.FromArgb(255, 195, 198, 212));
-            if (otherTabIcon != null)
-                otherTabIcon.Foreground = new SolidColorBrush(Color.FromArgb(255, 195, 198, 212));
-            ToolTipService.SetToolTip(otherTabButton, null);
+            tabBorder.Opacity = 1.0;
+            var enabledBrush = new SolidColorBrush(isActive
+                ? Color.FromArgb(255, 255, 255, 255)
+                : Color.FromArgb(255, 195, 198, 212));
+            tabText.Foreground = enabledBrush;
+            if (tabIcon != null)
+                tabIcon.Foreground = enabledBrush;
+            ToolTipService.SetToolTip(tabButton, null);
         }
         else
         {
-            otherTabBorder.Opacity = 0.4;
+            tabBorder.Opacity = 0.4;
             var disabledBrush = new SolidColorBrush(Color.FromArgb(255, 100, 100, 100));
-            otherTabText.Foreground = disabledBrush;
-            if (otherTabIcon != null)
-                otherTabIcon.Foreground = disabledBrush;
-            ToolTipService.SetToolTip(otherTabButton, _loc.TabDisabledTooltip);
+            tabText.Foreground = disabledBrush;
+            if (tabIcon != null)
+                tabIcon.Foreground = disabledBrush;
+            ToolTipService.SetToolTip(tabButton, isDownloading ? _loc.TabDisabledTooltip : null);
         }
     }
 
@@ -241,14 +268,22 @@ public sealed partial class MainPage : Page
     private void AudioTab_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not ViewModels.MainViewModel vm) return;
-        if (!AudioTabButton.IsEnabled) { ShowDownloadInProgressToast(); return; }
+        if (!AudioTabButton.IsEnabled)
+        {
+            if (vm.IsDownloading) ShowDownloadInProgressToast();
+            return;
+        }
         vm.SelectedMode = DownloadMode.Audio;
     }
 
     private void VideoTab_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is not ViewModels.MainViewModel vm) return;
-        if (!VideoTabButton.IsEnabled) { ShowDownloadInProgressToast(); return; }
+        if (!VideoTabButton.IsEnabled)
+        {
+            if (vm.IsDownloading) ShowDownloadInProgressToast();
+            return;
+        }
         vm.SelectedMode = DownloadMode.Video;
     }
 
@@ -322,7 +357,7 @@ public sealed partial class MainPage : Page
     private string? GetValidClipboardUrl()
     {
         var text = GetClipboardText()?.Trim();
-        return text != null && Services.DownloadService.IsValidYouTubeUrl(text) ? text : null;
+        return text != null && Services.DownloadService.IsValidSupportedUrl(text) ? text : null;
     }
 
     private static string? GetClipboardText()

@@ -1,7 +1,7 @@
 
 [Setup]
 AppName=BaldGrabber
-AppVersion=1.1.0
+AppVersion=1.2.0
 DefaultDirName={commonpf}\BaldGrabber
 DefaultGroupName=BaldGrabber
 OutputBaseFilename=BaldGrabber_Installer
